@@ -6,9 +6,9 @@ const router = Router();
 router.get('/', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ ok: true, db: 'up' });
+    res.json({ status: 'ok', db: 'up' });
   } catch (e) {
-    res.status(500).json({ ok: false, db: 'down', error: String(e) });
+    res.status(500).json({ status: 'error', db: 'down', error: String(e) });
   }
 });
 
