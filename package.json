@@ -1,0 +1,19 @@
+{
+  "name": "booking",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "yarn workspace @healthcare/backend dev",
+    "build:all": "yarn workspaces run build",
+    "test:all": "yarn workspaces run test",
+    "lint:all": "yarn workspaces run lint",
+    "clean": "yarn workspaces run clean"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "lerna": "^8.1.0",
+    "typescript": "^5.5.4"
+  }
+}

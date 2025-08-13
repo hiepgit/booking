@@ -1,0 +1,23 @@
+# Node
+node_modules
+dist
+*.log
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# Env
+.env
+.env.*
+packages/*/.env
+
+# OS/Editor
+.DS_Store
+.idea
+.vscode
+
+# Cursor workspace
+.cursor/

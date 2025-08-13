@@ -1,0 +1,429 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum definitions
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum AppointmentType {
+  ONLINE
+  OFFLINE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  VNPAY
+  MOMO
+  CASH
+  BANK_TRANSFER
+}
+
+enum ScheduleStatus {
+  AVAILABLE
+  BUSY
+  UNAVAILABLE
+}
+
+enum NotificationType {
+  APPOINTMENT_REMINDER
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  PAYMENT_SUCCESS
+  GENERAL
+}
+
+enum MedicalRecordType {
+  PRESCRIPTION
+  LAB_RESULT
+  DIAGNOSIS
+  TREATMENT_PLAN
+}
+
+// Main Models
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  phone       String?  @unique
+  password    String
+  role        UserRole @default(PATIENT)
+  isActive    Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+
+  // Profile information
+  firstName   String
+  lastName    String
+  avatar      String?
+  dateOfBirth DateTime?
+  gender      Gender?
+  address     String?
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  patient           Patient?
+  doctor            Doctor?
+  notifications     Notification[]
+  sentMessages      Message[] @relation("SentMessages")
+  receivedMessages  Message[] @relation("ReceivedMessages")
+
+  @@map("users")
+}
+
+model Patient {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+
+  // Medical information
+  bloodType        String?
+  allergies        String?
+  emergencyContact String?
+  insuranceNumber  String?
+
+  // Relations
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+  medicalRecords  MedicalRecord[]
+  payments        Payment[]
+  reviews         Review[]
+
+  @@map("patients")
+}
+
+model Doctor {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+
+  // Professional information
+  licenseNumber     String   @unique
+  specialtyId       String
+  experience        Int
+  biography         String?
+  consultationFee   Decimal  @db.Decimal(10, 2)
+
+  // Rating system
+  averageRating     Float    @default(0)
+  totalReviews      Int      @default(0)
+
+  // Availability
+  isAvailable       Boolean  @default(true)
+
+  // Relations
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty         Specialty @relation(fields: [specialtyId], references: [id])
+  appointments      Appointment[]
+  schedules         Schedule[]
+  medicalRecords    MedicalRecord[]
+  reviews           Review[]
+  clinicDoctors     ClinicDoctor[]
+
+  @@map("doctors")
+}
+
+model Specialty {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  icon        String?
+
+  // Relations
+  doctors     Doctor[]
+
+  @@map("specialties")
+}
+
+model Clinic {
+  id          String   @id @default(cuid())
+  name        String
+  address     String
+  phone       String
+  email       String?
+
+  // Location
+  latitude    Float?
+  longitude   Float?
+
+  // Operating hours
+  openTime    String   // HH:mm format
+  closeTime   String   // HH:mm format
+
+  // Images and description
+  images      String[] // Array of image URLs
+  description String?
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  clinicDoctors ClinicDoctor[]
+  appointments  Appointment[]
+
+  @@map("clinics")
+}
+
+model ClinicDoctor {
+  id        String   @id @default(cuid())
+  clinicId  String
+  doctorId  String
+
+  // Working schedule at this clinic
+  workingDays String[] // ["MONDAY", "TUESDAY", etc.]
+  startTime   String   // HH:mm
+  endTime     String   // HH:mm
+
+  // Relations
+  clinic    Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  doctor    Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, doctorId])
+  @@map("clinic_doctors")
+}
+
+model Schedule {
+  id        String         @id @default(cuid())
+  doctorId  String
+
+  // Date and time
+  date      DateTime       @db.Date
+  startTime String         // HH:mm format
+  endTime   String         // HH:mm format
+
+  // Status
+  status    ScheduleStatus @default(AVAILABLE)
+
+  // Additional info
+  note      String?
+
+  // Relations
+  doctor      Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@unique([doctorId, date, startTime])
+  @@map("schedules")
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  patientId       String
+  doctorId        String
+  clinicId        String?
+  scheduleId      String?
+
+  // Appointment details
+  appointmentDate DateTime
+  startTime       String            // HH:mm format
+  endTime         String            // HH:mm format
+  type            AppointmentType   @default(OFFLINE)
+  status          AppointmentStatus @default(PENDING)
+
+  // Patient information
+  symptoms        String?
+  notes           String?
+
+  // Meeting information (for online consultations)
+  meetingUrl      String?
+  meetingId       String?
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  patient         Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor          Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic          Clinic? @relation(fields: [clinicId], references: [id])
+  schedule        Schedule? @relation(fields: [scheduleId], references: [id])
+  payment         Payment?
+  medicalRecord   MedicalRecord?
+
+  @@map("appointments")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  appointmentId   String        @unique
+  patientId       String
+
+  // Payment details
+  amount          Decimal       @db.Decimal(10, 2)
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+
+  // Gateway information
+  transactionId   String?       @unique
+  gatewayResponse Json?
+
+  // Timestamps
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  appointment     Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient         Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model MedicalRecord {
+  id              String             @id @default(cuid())
+  appointmentId   String             @unique
+  patientId       String
+  doctorId        String
+
+  // Record details
+  type            MedicalRecordType  @default(DIAGNOSIS)
+  diagnosis       String?
+  prescription    String?
+  labResults      String?
+  treatmentPlan   String?
+  notes           String?
+
+  // Files
+  attachments     String[]           // URLs to files
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  appointment     Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient         Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor          Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@map("medical_records")
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  patientId   String
+  doctorId    String
+
+  // Review details
+  rating      Int      // 1-5 stars
+  comment     String?
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  patient     Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, doctorId])
+  @@map("reviews")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+
+  // Notification details
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?            // Additional data for the notification
+
+  // Status
+  isRead    Boolean          @default(false)
+
+  // Timestamps
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+
+  // Message details
+  content    String
+  messageType String  @default("text") // text, image, file
+  fileUrl    String?
+
+  // Status
+  isRead     Boolean  @default(false)
+
+  // Timestamps
+  createdAt  DateTime @default(now())
+
+  // Relations
+  sender     User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// System configuration tables
+model AppConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_configs")
+}
+
+// Audit log for important actions
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String
+  tableName   String?
+  recordId    String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+
+  // Timestamp
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+}
