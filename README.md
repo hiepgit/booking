@@ -61,3 +61,8 @@ cd packages/backend && yarn dev
 ### Ghi chú
 - Mặc định Prisma kết nối PostgreSQL theo `docker-compose.yml`. Điều chỉnh `DATABASE_URL` nếu cần.
 - Mobile/Realtime/Thanh toán sẽ được tích hợp dần theo yêu cầu.
+
+- Expo bundler khởi động OK bằng lệnh: yarn workspace mobile start (log: “Waiting on http://localhost:8081”). Bạn có thể mở Expo Go quét QR hoặc chạy Android/iOS:
+- Android: yarn workspace mobile android
+- iOS: yarn workspace mobile ios (cần macOS)
+- Web: yarn workspace mobile web
