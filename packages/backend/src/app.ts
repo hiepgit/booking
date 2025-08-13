@@ -5,8 +5,10 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import { loadEnv } from './config/env.js';
-import { swaggerSpec } from './config/swagger';
+import { swaggerSpec } from './config/swagger.js';
 import healthRouter from './routes/health.js';
+import authRouter from './routes/auth.js';
+import meRouter from './routes/me.js';
 
 const env = loadEnv();
 
@@ -36,6 +38,8 @@ export function createServer() {
   }
 
   app.use('/health', healthRouter);
+  app.use('/auth', authRouter);
+  app.use('/me', meRouter);
 
   app.get('/', (_req, res) => {
     res.json({ ok: true, name: 'backend', version: '0.0.0' });

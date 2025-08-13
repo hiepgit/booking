@@ -11,7 +11,8 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@healthcare/shared/*": ["packages/shared/src/*"]
+      "@healthcare/shared": ["packages/shared/dist/index.d.ts"],
+      "@healthcare/shared/*": ["packages/shared/dist/*"]
     }
   }
 }

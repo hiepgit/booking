@@ -1,6 +1,11 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@healthcare/shared": ["../../packages/shared/dist/index.d.ts"],
+      "@healthcare/shared/*": ["../../packages/shared/dist/*"]
+    }
   }
 }

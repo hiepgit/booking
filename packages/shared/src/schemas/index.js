@@ -1,95 +1,77 @@
 import { z } from "zod";
-import type { UserId, UserRole } from "../types";
-
-export const UserRoleSchema = z.enum(["PATIENT", "DOCTOR", "ADMIN"]).transform((v) => v as UserRole);
-export const UserIdSchema = z.string().min(1).transform((v) => v as UserId);
-
+export const UserRoleSchema = z.enum(["PATIENT", "DOCTOR", "ADMIN"]).transform((v) => v);
 export const TokenPayloadSchema = z
-  .object({
-    sub: UserIdSchema,
+    .object({
+    sub: z.string().min(1),
     email: z.string().email(),
     role: UserRoleSchema,
     iat: z.number().optional(),
     exp: z.number().optional(),
-  })
-  .strict();
-
+})
+    .strict();
 export const PagingQuerySchema = z
-  .object({
+    .object({
     page: z.coerce.number().int().positive().optional(),
     pageSize: z.coerce.number().int().positive().max(200).optional(),
-  })
-  .strict();
-
+})
+    .strict();
 export const SpecialtySchema = z
-  .object({
+    .object({
     id: z.string().min(1),
     name: z.string().min(1),
     description: z.string().optional(),
-  })
-  .strict();
-
+})
+    .strict();
 export const ClinicSchema = z
-  .object({
+    .object({
     id: z.string().min(1),
     name: z.string().min(1),
     address: z.string().min(1),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
-  })
-  .strict();
-
+})
+    .strict();
 export const DoctorSchema = z
-  .object({
+    .object({
     id: z.string().min(1),
     fullName: z.string().min(1),
     specialtyId: z.string().min(1),
     clinicId: z.string().optional(),
     rating: z.number().min(0).max(5).optional(),
-  })
-  .strict();
-
+})
+    .strict();
 export const ScheduleSlotSchema = z
-  .object({
+    .object({
     id: z.string().min(1),
     doctorId: z.string().min(1),
     startUtcIso: z.string().datetime({ offset: true }),
     endUtcIso: z.string().datetime({ offset: true }),
     isBooked: z.boolean(),
-  })
-  .strict();
-
+})
+    .strict();
 export const AuthRegisterSchema = z
-  .object({
+    .object({
     email: z.string().email(),
     password: z.string().min(8),
     fullName: z.string().min(1),
     role: UserRoleSchema,
-  })
-  .strict();
-
+})
+    .strict();
 export const AuthLoginSchema = z
-  .object({
+    .object({
     email: z.string().email(),
     password: z.string().min(8),
-  })
-  .strict();
-
+})
+    .strict();
 export const VerifyOtpSchema = z
-  .object({
+    .object({
     email: z.string().email(),
     otp: z.string().length(6),
-  })
-  .strict();
-
+})
+    .strict();
 export const TokenPairSchema = z
-  .object({
+    .object({
     accessToken: z.string().min(1),
     refreshToken: z.string().min(1),
-  })
-  .strict();
-
-export type TokenPayloadInput = z.input<typeof TokenPayloadSchema>;
-export type TokenPayloadOutput = z.output<typeof TokenPayloadSchema>;
-
-
+})
+    .strict();

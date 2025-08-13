@@ -46,3 +46,13 @@ SMTP_PASS=
 - `db:seed`: run Prisma seed (configure `prisma/seed.ts` first)
 
 
+## Auth endpoints (Phase 1)
+
+- POST `/auth/register` { email, password, fullName, role }
+- POST `/auth/verify-otp` { email, otp }
+- POST `/auth/login` { email, password }
+- POST `/auth/refresh` { refreshToken }
+- GET `/me`
+- PATCH `/me`
+
+
