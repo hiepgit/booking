@@ -5,9 +5,26 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./types": "./dist/types/index.js",
+    "./schemas": "./dist/schemas/index.js",
+    "./guards": "./dist/guards/index.js",
+    "./utils": "./dist/utils/index.js"
+  },
+  "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "clean": "rimraf dist",
+    "clean": "rm -rf dist",
     "test": "echo \"(todo)\""
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
   }
 }
