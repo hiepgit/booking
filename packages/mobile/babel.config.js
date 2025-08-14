@@ -1,3 +1,5 @@
+const reanimatedPlugin = require('react-native-reanimated/plugin');
+
 module.exports = function (api) {
   api.cache(true);
   return {
@@ -12,6 +14,7 @@ module.exports = function (api) {
           extensions: ['.ts', '.tsx', '.js', '.json'],
         },
       ],
+      reanimatedPlugin,
     ],
   };
 };
