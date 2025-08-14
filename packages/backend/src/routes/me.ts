@@ -5,6 +5,16 @@ import { z } from 'zod';
 
 const router = Router();
 
+/**
+ * @openapi
+ * /me:
+ *   get:
+ *     tags:
+ *       - Me
+ *     security:
+ *       - bearerAuth: []
+ *     summary: Get current user profile
+ */
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const userId = req.user.sub;
@@ -22,6 +32,16 @@ const PatchBody = z.object({
   address: z.string().optional(),
 });
 
+/**
+ * @openapi
+ * /me:
+ *   patch:
+ *     tags:
+ *       - Me
+ *     security:
+ *       - bearerAuth: []
+ *     summary: Update current user profile
+ */
 router.patch('/', requireAuth, async (req, res, next) => {
   try {
     const userId = req.user.sub;

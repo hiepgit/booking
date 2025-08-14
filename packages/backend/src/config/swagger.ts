@@ -7,7 +7,16 @@ const options: Options = {
       title: 'Healthcare Booking API',
       version: '0.0.0',
     },
-    servers: [{ url: '/'}],
+    servers: [{ url: '/' }],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
   },
   apis: [
     './src/routes/*.ts',

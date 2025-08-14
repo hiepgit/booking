@@ -75,13 +75,13 @@ enum MedicalRecordType {
 // Main Models
 
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  phone       String?  @unique
-  password    String
-  role        UserRole @default(PATIENT)
-  isActive    Boolean  @default(true)
-  isVerified  Boolean  @default(false)
+  id           String   @id @default(cuid())
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String   @map("password")
+  role         UserRole @default(PATIENT)
+  isActive     Boolean  @default(true)
+  isVerified   Boolean  @default(false)
 
   // Profile information
   firstName   String
@@ -394,6 +394,25 @@ model Message {
   receiver   User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+}
+
+// OTP requests for registration and password reset
+enum OtpPurpose {
+  REGISTER
+  RESET
+}
+
+model OtpRequest {
+  id           String     @id @default(cuid())
+  email        String
+  otpHash      String
+  attemptCount Int        @default(0)
+  expiresAt    DateTime
+  purpose      OtpPurpose @default(REGISTER)
+  createdAt    DateTime   @default(now())
+
+  @@unique([email, purpose])
+  @@map("otp_requests")
 }
 
 // System configuration tables

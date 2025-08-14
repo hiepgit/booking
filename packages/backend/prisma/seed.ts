@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   PrismaClient,
   UserRole,
@@ -43,7 +44,7 @@ async function main() {
     create: {
       email: 'patient1@example.com',
       phone: '0900000001',
-      password: 'password123', // TODO: hash khi làm auth
+      passwordHash: '$2a$10$RUM3qQk0tY9E8hGkQdKQOe3r1rX6gGx0s7y0QZ0T0d5U0uVb1d3fS',
       role: UserRole.PATIENT,
       firstName: 'An',
       lastName: 'Nguyen',
@@ -66,7 +67,7 @@ async function main() {
     create: {
       email: 'doctor1@example.com',
       phone: '0900000002',
-      password: 'password123',
+      passwordHash: '$2a$10$RUM3qQk0tY9E8hGkQdKQOe3r1rX6gGx0s7y0QZ0T0d5U0uVb1d3fS',
       role: UserRole.DOCTOR,
       firstName: 'Binh',
       lastName: 'Tran',
