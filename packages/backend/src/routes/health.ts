@@ -3,6 +3,14 @@ import { prisma } from '../libs/prisma.js';
 
 const router = Router();
 
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     tags:
+ *       - Health
+ *     summary: Health check endpoint
+ */
 router.get('/', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;

@@ -11,7 +11,6 @@ dist
 
 # Env
 .env
-.env.*
 packages/*/.env
 
 # OS/Editor
