@@ -11,7 +11,7 @@ type BrandLogoProps = {
 
 export function BrandLogo({ size = 32, style, tintColor }: BrandLogoProps): ReactElement {
   // Ưu tiên SVG logo mới; fallback sang PNG nếu cần trong tương lai
-  return <LogoSvg width={size} height={size} />;
+  return <LogoSvg width={size} height={size} color={tintColor} fill={tintColor} />;
 }
 
 
