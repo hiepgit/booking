@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { Animated, ImageBackground, StatusBar, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Animated, ImageBackground, StatusBar, StyleSheet, View, TouchableOpacity, SafeAreaView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BrandLogo } from '../components/BrandLogo';
 
@@ -40,8 +40,7 @@ export default function LandingScreen({ onLogoPress }: LandingScreenProps): Reac
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} translucent={false} />
 
       {/* Background with Doctor Photos */}
       <View style={styles.backgroundContainer}>
@@ -52,7 +51,7 @@ export default function LandingScreen({ onLogoPress }: LandingScreenProps): Reac
             <PhotoTile image={require('../../assets/behnazsabaa_Smiling_Medical_Doctor__Style_of_Her_Film_with_Soft_cabe61f6-0a23-4afa-ace2-90d69e11914f.jpg')} />
             <PhotoTile bgColor={COLORS.pastel.pink} />
           </View>
-          
+
           {/* Row 2 */}
           <View style={styles.photoRow}>
             <PhotoTile image={require('../../assets/behnazsabaa_Portrait_of_Smiling_Male_Medical_Doctor__Style_of_H_0996798e-acc5-48e2-9b18-79c922a9f29b.jpg')} />
@@ -86,7 +85,7 @@ export default function LandingScreen({ onLogoPress }: LandingScreenProps): Reac
             </View>
             <PhotoTile image={require('../../assets/behnazsabaa_Smiling_Medical_Doctor__Style_of_Her_Film_with_Soft_0018eb0f-c5eb-48db-9994-918bde9cd9d4.jpg')} />
           </View>
-          
+
           {/* Row 3 */}
           <View style={styles.photoRow}>
             <PhotoTile bgColor={COLORS.pastel.brown} />
@@ -94,7 +93,7 @@ export default function LandingScreen({ onLogoPress }: LandingScreenProps): Reac
             <PhotoTile bgColor={COLORS.pastel.teal} />
           </View>
         </View>
-        
+
         {/* Gradient Overlay */}
         <LinearGradient
           colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.7)']}
@@ -120,7 +119,7 @@ function PhotoTile({ children, bgColor, image, gradientColors }: TileProps): Rea
       </ImageBackground>
     );
   }
-  
+
   if (isColorStops(gradientColors)) {
     return (
       <LinearGradient
@@ -133,7 +132,7 @@ function PhotoTile({ children, bgColor, image, gradientColors }: TileProps): Rea
       </LinearGradient>
     );
   }
-  
+
   return (
     <View style={[styles.photoTile, { backgroundColor: bgColor }]}>
       {children}
@@ -187,7 +186,7 @@ const styles = StyleSheet.create({
   photoTileImage: {
     borderRadius: 24,
   },
-  
+
   // Gradient Overlay
   gradientOverlay: {
     position: 'absolute',
@@ -196,7 +195,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
   },
-  
+
   // Logo Container
   logoTileWrapper: {
     flex: 1,
