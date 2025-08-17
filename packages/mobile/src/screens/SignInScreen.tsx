@@ -223,6 +223,17 @@ export default function SignInScreen({
               </TouchableOpacity>
             </View>
 
+            {/* Test Login Button */}
+            <TouchableOpacity
+              style={styles.testLoginButton}
+              onPress={handleSignIn}
+              accessible
+              accessibilityLabel="Test đăng nhập nhanh"
+            >
+              <MaterialIcons name="flash-on" size={20} color="#FFFFFF" />
+              <Text style={styles.testLoginButtonText}>Test Đăng Nhập Nhanh</Text>
+            </TouchableOpacity>
+
             {/* Helper Text */}
             <TouchableOpacity onPress={handleForgotPassword}>
               <Text style={styles.forgotPasswordLink}>Quên mật khẩu?</Text>
@@ -453,5 +464,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: '#1C64F2',
+  },
+
+  // Test Login Button
+  testLoginButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 8,
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    height: 48,
+    width: '100%',
+  },
+  testLoginButtonText: {
+    fontFamily: 'Inter',
+    fontWeight: '600',
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#FFFFFF',
   },
 });
