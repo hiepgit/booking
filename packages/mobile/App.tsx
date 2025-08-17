@@ -8,9 +8,10 @@ import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
-import MainAppScreen from './src/screens/MainAppScreen';
+import HomeScreen from './src/screens/HomeScreen';
+import LocationScreen from './src/screens/LocationScreen';
 
-type Screen = 'landing' | 'onboarding' | 'signin' | 'signup' | 'verify-email' | 'forgot-password' | 'reset-password' | 'verify-reset-email' | 'edit-profile' | 'main-app';
+type Screen = 'landing' | 'onboarding' | 'signin' | 'signup' | 'verify-email' | 'forgot-password' | 'reset-password' | 'verify-reset-email' | 'edit-profile' | 'main-app' | 'location';
 
 type UserData = {
   name: string;
@@ -66,6 +67,16 @@ export default function App(): ReactElement {
     setCurrentScreen('edit-profile');
   };
 
+  const navigateToLocation = (): void => {
+    console.log('Navigating to location screen...');
+    setCurrentScreen('location');
+  };
+
+  const navigateToMainApp = (): void => {
+    console.log('Navigating to main app...');
+    setCurrentScreen('main-app');
+  };
+
   switch (currentScreen) {
     case 'signin':
       return (
@@ -73,15 +84,17 @@ export default function App(): ReactElement {
           onBack={navigateToLanding}
           onSignIn={() => {
             console.log('Sign in successful');
-            // Placeholder cho main app
+            setCurrentScreen('main-app');
           }}
           onCreateAccount={navigateToSignUp}
           onForgotPassword={navigateToForgotPassword}
           onGoogleSignIn={() => {
             console.log('Google sign in');
+            setCurrentScreen('main-app');
           }}
           onFacebookSignIn={() => {
             console.log('Facebook sign in');
+            setCurrentScreen('main-app');
           }}
         />
       );
@@ -168,8 +181,17 @@ export default function App(): ReactElement {
       );
     case 'main-app':
       return (
-        <MainAppScreen 
+        <HomeScreen 
           onLogout={navigateToLanding}
+          onNavigateLocation={navigateToLocation}
+        />
+      );
+    case 'location':
+      return (
+        <LocationScreen 
+          onNavigateHome={navigateToMainApp}
+          onNavigateAppointment={() => console.log('Navigate to appointments')}
+          onNavigateProfile={() => console.log('Navigate to profile')}
         />
       );
     case 'landing':
