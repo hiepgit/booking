@@ -10,8 +10,12 @@ import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import LocationScreen from './src/screens/LocationScreen';
+import FindDoctorsScreen from './src/screens/FindDoctorsScreen';
+import DoctorDetailsScreen from './src/screens/DoctorDetailsScreen';
+import SelectTimeScreen from './src/screens/SelectTimeScreen';
+import ManageAppointmentScreen from './src/screens/ManageAppointmentScreen';
 
-type Screen = 'landing' | 'onboarding' | 'signin' | 'signup' | 'verify-email' | 'forgot-password' | 'reset-password' | 'verify-reset-email' | 'edit-profile' | 'main-app' | 'location';
+type Screen = 'landing' | 'onboarding' | 'signin' | 'signup' | 'verify-email' | 'forgot-password' | 'reset-password' | 'verify-reset-email' | 'edit-profile' | 'main-app' | 'location' | 'find-doctors' | 'doctor-details' | 'select-time' | 'manage-appointments';
 
 type UserData = {
   name: string;
@@ -70,6 +74,26 @@ export default function App(): ReactElement {
   const navigateToLocation = (): void => {
     console.log('Navigating to location screen...');
     setCurrentScreen('location');
+  };
+
+  const navigateToFindDoctors = (): void => {
+    console.log('Navigating to find doctors screen...');
+    setCurrentScreen('find-doctors');
+  };
+
+  const navigateToDoctorDetails = (doctorId: string): void => {
+    console.log('Navigating to doctor details screen for doctor:', doctorId);
+    setCurrentScreen('doctor-details');
+  };
+
+  const navigateToSelectTime = (): void => {
+    console.log('Navigating to select time screen...');
+    setCurrentScreen('select-time');
+  };
+
+  const navigateToManageAppointments = (): void => {
+    console.log('Navigating to manage appointments screen...');
+    setCurrentScreen('manage-appointments');
   };
 
   const navigateToMainApp = (): void => {
@@ -184,13 +208,47 @@ export default function App(): ReactElement {
         <HomeScreen 
           onLogout={navigateToLanding}
           onNavigateLocation={navigateToLocation}
+          onNavigateFindDoctors={navigateToFindDoctors}
+          onNavigateAppointments={navigateToManageAppointments}
         />
       );
     case 'location':
       return (
         <LocationScreen 
           onNavigateHome={navigateToMainApp}
-          onNavigateAppointment={() => console.log('Navigate to appointments')}
+          onNavigateAppointment={navigateToManageAppointments}
+          onNavigateProfile={() => console.log('Navigate to profile')}
+        />
+      );
+    case 'find-doctors':
+      return (
+        <FindDoctorsScreen 
+          onBack={navigateToMainApp}
+          onDoctorPress={navigateToDoctorDetails}
+        />
+      );
+    case 'doctor-details':
+      return (
+        <DoctorDetailsScreen 
+          onBack={navigateToFindDoctors}
+          onBookAppointment={navigateToSelectTime}
+        />
+      );
+    case 'select-time':
+      return (
+        <SelectTimeScreen 
+          onBack={() => navigateToDoctorDetails('1')}
+          onConfirm={(date, startTime, endTime) => {
+            console.log('Appointment confirmed for:', date, startTime, '-', endTime);
+            // TODO: Navigate to confirmation screen
+          }}
+        />
+      );
+    case 'manage-appointments':
+      return (
+        <ManageAppointmentScreen 
+          onNavigateHome={navigateToMainApp}
+          onNavigateLocation={navigateToLocation}
           onNavigateProfile={() => console.log('Navigate to profile')}
         />
       );
