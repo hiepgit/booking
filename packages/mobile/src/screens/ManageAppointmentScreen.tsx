@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { ReactElement } from 'react';
 import {
   View,
@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Image,
+  Animated,
+  Easing,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -38,31 +40,31 @@ type Appointment = {
 const mockAppointments: Appointment[] = [
   {
     id: '1',
-    date: 'May 14, 2023 - 10.00 AM',
-    time: '10:00 AM',
-    doctorName: 'Dr. David Patel',
-    specialty: 'Cardiologist',
-    location: 'Cardiology Center, USA',
+    date: '14 Tháng 5, 2023 - 10:00 Sáng',
+    time: '10:00 Sáng',
+    doctorName: 'Bác sĩ David Patel',
+    specialty: 'Bác sĩ Tim mạch',
+    location: 'Trung tâm Tim mạch, Hoa Kỳ',
     doctorImage: 'https://example.com/doctor1.jpg',
     status: 'upcoming',
   },
   {
     id: '2',
-    date: 'May 15, 2023 - 2.30 PM',
-    time: '2:30 PM',
-    doctorName: 'Dr. Sarah Johnson',
-    specialty: 'Dermatologist',
-    location: 'Dermatology Clinic, USA',
+    date: '15 Tháng 5, 2023 - 2:30 Chiều',
+    time: '2:30 Chiều',
+    doctorName: 'Bác sĩ Sarah Johnson',
+    specialty: 'Bác sĩ Da liễu',
+    location: 'Phòng khám Da liễu, Hoa Kỳ',
     doctorImage: 'https://example.com/doctor2.jpg',
     status: 'upcoming',
   },
   {
     id: '3',
-    date: 'May 10, 2023 - 9.00 AM',
-    time: '9:00 AM',
-    doctorName: 'Dr. Michael Chen',
-    specialty: 'Neurologist',
-    location: 'Neurology Institute, USA',
+    date: '10 Tháng 5, 2023 - 9:00 Sáng',
+    time: '9:00 Sáng',
+    doctorName: 'Bác sĩ Michael Chen',
+    specialty: 'Bác sĩ Thần kinh',
+    location: 'Viện Thần kinh, Hoa Kỳ',
     doctorImage: 'https://example.com/doctor3.jpg',
     status: 'completed',
   },
@@ -75,81 +77,222 @@ export default function ManageAppointmentScreen({
   onNavigateProfile,
 }: ManageAppointmentScreenProps): ReactElement {
   const [activeTab, setActiveTab] = useState<AppointmentStatus>('upcoming');
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  
+  // Animation values - tất cả hooks phải ở đầu component
+  const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
+  const contentOpacity = useRef(new Animated.Value(1)).current;
+  const contentScale = useRef(new Animated.Value(1)).current;
+  const swipeFeedback = useRef(new Animated.Value(0)).current;
 
   const filteredAppointments = mockAppointments.filter(
     appointment => appointment.status === activeTab
   );
 
-  const renderTab = (status: AppointmentStatus, label: string) => (
-    <TouchableOpacity
-      style={[
-        styles.tab,
-        activeTab === status && styles.activeTab
-      ]}
-      onPress={() => setActiveTab(status)}
-    >
-      <Text style={[
-        styles.tabText,
-        activeTab === status && styles.activeTabText
-      ]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
+  // Animate tab indicator
+  useEffect(() => {
+    const tabIndex = ['upcoming', 'completed', 'canceled'].indexOf(activeTab);
+    // Tính toán vị trí chính xác cho tabIndicator
+    const tabWidth = 80; // Width của mỗi tab
+    const tabSpacing = 40; // Khoảng cách giữa các tab
+    const totalWidth = (tabWidth + tabSpacing) * 2 + tabWidth; // Tổng width của 3 tab
+    const startPosition = (width - totalWidth) / 2; // Vị trí bắt đầu của tabs
+    const targetPosition = startPosition + tabIndex * (tabWidth + tabSpacing) + (tabWidth - 60) / 2; // 60 là width của indicator
+    
+    Animated.spring(tabIndicatorPosition, {
+      toValue: targetPosition,
+      useNativeDriver: false,
+      tension: 100,
+      friction: 8,
+    }).start();
+  }, [activeTab]);
 
-  const renderAppointmentCard = (appointment: Appointment) => (
-    <View key={appointment.id} style={styles.appointmentCard}>
-      {/* Date Header */}
-      <Text style={styles.dateHeader}>{appointment.date}</Text>
-      
-      {/* Separator */}
-      <View style={styles.separator} />
-      
-      {/* Doctor Info */}
-      <View style={styles.doctorInfo}>
-        <View style={styles.doctorImageContainer}>
-          <View style={styles.doctorImagePlaceholder}>
-            <MaterialIcons name="person" size={40} color="#9CA3AF" />
+  // Animate content transition
+  const animateContentTransition = (direction: 'left' | 'right') => {
+    // Fade out and scale down
+    Animated.parallel([
+      Animated.timing(contentOpacity, {
+        toValue: 0.7,
+        duration: 150,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentScale, {
+        toValue: 0.95,
+        duration: 150,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Fade in and scale up
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 200,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentScale, {
+          toValue: 1,
+          duration: 200,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
+  // Swipe feedback animation
+  const animateSwipeFeedback = (direction: 'left' | 'right') => {
+    const startValue = direction === 'left' ? -20 : 20;
+    
+    Animated.sequence([
+      Animated.timing(swipeFeedback, {
+        toValue: startValue,
+        duration: 100,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(swipeFeedback, {
+        toValue: 0,
+        duration: 200,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handleSwipe = (direction: 'left' | 'right') => {
+    const tabs: AppointmentStatus[] = ['upcoming', 'completed', 'canceled'];
+    const currentIndex = tabs.indexOf(activeTab);
+    
+    console.log('Current tab:', activeTab, 'Current index:', currentIndex);
+    
+    if (direction === 'left' && currentIndex < tabs.length - 1) {
+      const newTab = tabs[currentIndex + 1];
+      console.log('Switching to next tab:', newTab);
+      setActiveTab(newTab);
+      animateContentTransition(direction);
+      animateSwipeFeedback(direction);
+    } else if (direction === 'right' && currentIndex > 0) {
+      const newTab = tabs[currentIndex - 1];
+      console.log('Switching to previous tab:', newTab);
+      setActiveTab(newTab);
+      animateContentTransition(direction);
+      animateSwipeFeedback(direction);
+    }
+  };
+
+  const handleTouchStart = (event: any) => {
+    setTouchStart(event.nativeEvent.pageX);
+  };
+
+  const handleTouchEnd = (event: any) => {
+    if (touchStart === null) return;
+    
+    const touchEnd = event.nativeEvent.pageX;
+    const diff = touchStart - touchEnd;
+    const swipeThreshold = 50;
+    
+    console.log('Touch start:', touchStart, 'Touch end:', touchEnd, 'Diff:', diff);
+    
+    if (Math.abs(diff) > swipeThreshold) {
+      if (diff > 0) {
+        // Vuốt trái
+        console.log('Swiping left');
+        handleSwipe('left');
+      } else {
+        // Vuốt phải
+        console.log('Swiping right');
+        handleSwipe('right');
+      }
+    }
+    
+    setTouchStart(null);
+  };
+
+  const renderTab = (status: AppointmentStatus, label: string) => {
+    const handlePress = () => {
+      if (activeTab !== status) {
+        setActiveTab(status);
+        animateContentTransition('left');
+      }
+    };
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.tab,
+          activeTab === status && styles.activeTab
+        ]}
+        onPress={handlePress}
+      >
+        <Text style={[
+          styles.tabText,
+          activeTab === status && styles.activeTabText
+        ]}>
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderAppointmentCard = (appointment: Appointment, index: number) => {
+    return (
+      <View key={appointment.id} style={styles.appointmentCard}>
+        {/* Date Header */}
+        <Text style={styles.dateHeader}>{appointment.date}</Text>
+        
+        {/* Separator */}
+        <View style={styles.separator} />
+        
+        {/* Doctor Info */}
+        <View style={styles.doctorInfo}>
+          <View style={styles.doctorImageContainer}>
+            <View style={styles.doctorImagePlaceholder}>
+              <MaterialIcons name="person" size={40} color="#9CA3AF" />
+            </View>
+          </View>
+          
+          <View style={styles.doctorDetails}>
+            <Text style={styles.doctorName}>{appointment.doctorName}</Text>
+            <Text style={styles.specialty}>{appointment.specialty}</Text>
+            
+            <View style={styles.locationContainer}>
+              <MaterialIcons name="location-on" size={14} color="#4B5563" />
+              <Text style={styles.location}>{appointment.location}</Text>
+            </View>
           </View>
         </View>
         
-        <View style={styles.doctorDetails}>
-          <Text style={styles.doctorName}>{appointment.doctorName}</Text>
-          <Text style={styles.specialty}>{appointment.specialty}</Text>
-          
-          <View style={styles.locationContainer}>
-            <MaterialIcons name="location-on" size={14} color="#4B5563" />
-            <Text style={styles.location}>{appointment.location}</Text>
-          </View>
+        {/* Separator */}
+        <View style={styles.separator} />
+        
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          {appointment.status === 'upcoming' ? (
+            <>
+              <TouchableOpacity style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>Đổi lịch</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>Hủy lịch</Text>
+              </TouchableOpacity>
+            </>
+          ) : appointment.status === 'completed' ? (
+            <TouchableOpacity style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Đặt lại</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Đặt lại</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
-      
-      {/* Separator */}
-      <View style={styles.separator} />
-      
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        {appointment.status === 'upcoming' ? (
-          <>
-            <TouchableOpacity style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Reschedule</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </>
-        ) : appointment.status === 'completed' ? (
-          <TouchableOpacity style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Book Again</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Book Again</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderBottomNavigation = () => (
     <View style={styles.bottomNavigation}>
@@ -178,41 +321,74 @@ export default function ManageAppointmentScreen({
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Content */}
-      <View style={styles.content}>
+      <View 
+        style={styles.content}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {/* Title */}
         <View style={styles.titleSection}>
-          <Text style={styles.title}>My Bookings</Text>
+          <Text style={styles.title}>Lịch hẹn của tôi</Text>
         </View>
 
-        {/* Tabs */}
+        {/* Tabs with animated indicator */}
         <View style={styles.tabsContainer}>
-          {renderTab('upcoming', 'Upcoming')}
-          {renderTab('completed', 'Completed')}
-          {renderTab('canceled', 'Canceled')}
+          {renderTab('upcoming', 'Sắp tới')}
+          {renderTab('completed', 'Đã hoàn thành')}
+          {renderTab('canceled', 'Đã hủy')}
+          
+          {/* Animated tab indicator */}
+          <Animated.View 
+            style={[
+              styles.tabIndicator,
+              {
+                transform: [{ translateX: tabIndicatorPosition }],
+              }
+            ]} 
+          />
         </View>
 
         {/* Separator */}
         <View style={styles.tabSeparator} />
 
-        {/* Appointments List */}
-        <ScrollView style={styles.appointmentsList} showsVerticalScrollIndicator={false}>
-          {filteredAppointments.length > 0 ? (
-            filteredAppointments.map(renderAppointmentCard)
-          ) : (
-            <View style={styles.emptyState}>
-              <MaterialIcons name="event-busy" size={64} color="#9CA3AF" />
-              <Text style={styles.emptyStateTitle}>No {activeTab} appointments</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                {activeTab === 'upcoming' 
-                  ? 'You don\'t have any upcoming appointments'
-                  : activeTab === 'completed'
-                  ? 'You don\'t have any completed appointments'
-                  : 'You don\'t have any canceled appointments'
-                }
-              </Text>
-            </View>
-          )}
-        </ScrollView>
+        {/* Animated Content */}
+        <Animated.View
+          style={{
+            flex: 1,
+            opacity: contentOpacity,
+            transform: [
+              { scale: contentScale },
+              { translateX: swipeFeedback }
+            ],
+          }}
+        >
+          {/* Appointments List */}
+          <ScrollView 
+            ref={scrollViewRef}
+            style={styles.appointmentsList} 
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={true}
+          >
+            {filteredAppointments.length > 0 ? (
+              filteredAppointments.map((appointment, index) => renderAppointmentCard(appointment, index))
+            ) : (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="event-busy" size={64} color="#9CA3AF" />
+                <Text style={styles.emptyStateTitle}>
+                  Không có lịch hẹn {activeTab === 'upcoming' ? 'sắp tới' : activeTab === 'completed' ? 'đã hoàn thành' : 'đã hủy'}
+                </Text>
+                <Text style={styles.emptyStateSubtitle}>
+                  {activeTab === 'upcoming' 
+                    ? 'Bạn chưa có lịch hẹn nào sắp tới'
+                    : activeTab === 'completed'
+                    ? 'Bạn chưa có lịch hẹn nào đã hoàn thành'
+                    : 'Bạn chưa có lịch hẹn nào đã hủy'
+                  }
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </Animated.View>
       </View>
 
       {/* Bottom Navigation */}
@@ -244,16 +420,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    gap: 40,
+    gap: 40, // Khoảng cách giữa các tab
+    position: 'relative', // Để tabIndicator có thể định vị tuyệt đối
   },
   tab: {
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
   activeTab: {
-    borderBottomWidth: 3,
-    borderBottomColor: '#1C2A3A',
-    borderRadius: 50,
+    // Xóa borderBottomWidth để không có thanh trượt cũ
   },
   tabText: {
     fontSize: 16,
@@ -433,4 +608,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: 60, // Điều chỉnh width cho phù hợp
+    height: 3,
+    backgroundColor: '#1C2A3A',
+    borderRadius: 50,
+    zIndex: 1,
+  },
+
 });
