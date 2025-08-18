@@ -21,6 +21,7 @@ type HomeScreenProps = {
   onNavigateLocation?: () => void;
   onNavigateFindDoctors?: () => void;
   onNavigateAppointments?: () => void;
+  onNavigateProfile?: () => void;
 };
 
 type Category = {
@@ -79,7 +80,13 @@ function isFunction(fn: unknown): fn is (() => void) {
   return typeof fn === 'function';
 }
 
-export default function HomeScreen({ onLogout, onNavigateLocation, onNavigateFindDoctors, onNavigateAppointments }: HomeScreenProps): ReactElement {
+export default function HomeScreen({ 
+  onLogout, 
+  onNavigateLocation, 
+  onNavigateFindDoctors, 
+  onNavigateAppointments,
+  onNavigateProfile 
+}: HomeScreenProps): ReactElement {
   const [activeTab, setActiveTab] = useState<'home' | 'location' | 'appointment' | 'profile'>('home');
 
   const handleLogout = (): void => {
@@ -103,6 +110,12 @@ export default function HomeScreen({ onLogout, onNavigateLocation, onNavigateFin
   const handleNavigateAppointments = (): void => {
     if (isFunction(onNavigateAppointments)) {
       onNavigateAppointments();
+    }
+  };
+
+  const handleNavigateProfile = (): void => {
+    if (isFunction(onNavigateProfile)) {
+      onNavigateProfile();
     }
   };
 
@@ -184,7 +197,6 @@ export default function HomeScreen({ onLogout, onNavigateLocation, onNavigateFin
           {/* Location & Notification */}
           <View style={styles.headerRow}>
             <View style={styles.locationContainer}>
-              <Text style={styles.locationLabel}>Vị trí</Text>
               <View style={styles.locationRow}>
                 <MaterialIcons name="location-on" size={18} color="#1C2A3A" />
                 <View style={styles.locationTextContainer}>
@@ -310,7 +322,7 @@ export default function HomeScreen({ onLogout, onNavigateLocation, onNavigateFin
         
         <TouchableOpacity 
           style={[styles.navItem, activeTab === 'profile' && styles.activeNavItem]}
-          onPress={() => setActiveTab('profile')}
+          onPress={handleNavigateProfile}
         >
           <MaterialIcons 
             name="person-outline" 
