@@ -19,6 +19,7 @@ const { width } = Dimensions.get('window');
 type SelectTimeScreenProps = {
   onBack?: () => void;
   onConfirm?: (date: string, time: string, endTime: string) => void;
+  onNavigateToMyBookings?: () => void;
   doctorId?: string;
 };
 
@@ -76,7 +77,12 @@ function isFunction(fn: unknown): fn is Function {
   return typeof fn === 'function';
 }
 
-export default function SelectTimeScreen({ onBack, onConfirm, doctorId }: SelectTimeScreenProps): ReactElement {
+export default function SelectTimeScreen({ 
+  onBack, 
+  onConfirm, 
+  onNavigateToMyBookings,
+  doctorId 
+}: SelectTimeScreenProps): ReactElement {
   const [selectedDate, setSelectedDate] = useState('19');
   const [selectedTime, setSelectedTime] = useState('');
   const [currentMonth, setCurrentMonth] = useState('Tháng 8, 2025');
@@ -177,6 +183,12 @@ export default function SelectTimeScreen({ onBack, onConfirm, doctorId }: Select
     const nextAvailable = calendarDates.find(d => d.hasSlots && !d.isDisabled);
     if (nextAvailable) {
       handleDateSelect(nextAvailable);
+    }
+  };
+
+  const handleViewAppointments = (): void => {
+    if (isFunction(onNavigateToMyBookings)) {
+      onNavigateToMyBookings();
     }
   };
 
@@ -381,6 +393,7 @@ export default function SelectTimeScreen({ onBack, onConfirm, doctorId }: Select
       <SuccessPopup
         visible={showSuccessPopup}
         onClose={handleClosePopup}
+        onViewAppointments={handleViewAppointments}
         appointmentDetails={appointmentDetails}
       />
     </SafeAreaView>
