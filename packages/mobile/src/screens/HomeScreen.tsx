@@ -19,6 +19,8 @@ const { width } = Dimensions.get('window');
 type HomeScreenProps = {
   onLogout?: () => void;
   onNavigateLocation?: () => void;
+  onNavigateFindDoctors?: () => void;
+  onNavigateAppointments?: () => void;
 };
 
 type Category = {
@@ -54,7 +56,7 @@ const doctors: Doctor[] = [
   {
     id: '1',
     name: 'Phòng khám Sunrise Health',
-    address: '123 Đường Duy Tân, Cầu Giấy, Hà Nội',
+    address: '120 Yên Lãng, Cầu Giấy, Hà Nội',
     rating: 5.0,
     reviews: 58,
     distance: '2.5 km/40 phút',
@@ -77,7 +79,7 @@ function isFunction(fn: unknown): fn is (() => void) {
   return typeof fn === 'function';
 }
 
-export default function HomeScreen({ onLogout, onNavigateLocation }: HomeScreenProps): ReactElement {
+export default function HomeScreen({ onLogout, onNavigateLocation, onNavigateFindDoctors, onNavigateAppointments }: HomeScreenProps): ReactElement {
   const [activeTab, setActiveTab] = useState<'home' | 'location' | 'appointment' | 'profile'>('home');
 
   const handleLogout = (): void => {
@@ -89,6 +91,18 @@ export default function HomeScreen({ onLogout, onNavigateLocation }: HomeScreenP
   const handleNavigateLocation = (): void => {
     if (isFunction(onNavigateLocation)) {
       onNavigateLocation();
+    }
+  };
+
+  const handleNavigateFindDoctors = (): void => {
+    if (isFunction(onNavigateFindDoctors)) {
+      onNavigateFindDoctors();
+    }
+  };
+
+  const handleNavigateAppointments = (): void => {
+    if (isFunction(onNavigateAppointments)) {
+      onNavigateAppointments();
     }
   };
 
@@ -187,17 +201,13 @@ export default function HomeScreen({ onLogout, onNavigateLocation }: HomeScreenP
           </View>
 
           {/* Search Bar */}
-          <View style={styles.searchBar}>
+          <TouchableOpacity style={styles.searchBar} onPress={handleNavigateFindDoctors}>
             <MaterialIcons name="search" size={24} color="#9CA3AF" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Tìm bác sĩ..."
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
+            <Text style={styles.searchPlaceholder}>Tìm bác sĩ...</Text>
+          </TouchableOpacity>
 
           {/* Banner */}
-          <View style={styles.bannerContainer}>
+          <TouchableOpacity style={styles.bannerContainer} onPress={handleNavigateFindDoctors}>
             <View style={styles.banner}>
               <Image 
                 source={require('../../assets/behnazsabaa_Smiling_Medical_Doctor__Style_of_Her_Film_with_Soft_7a04bd15-0067-406d-87f7-c3f253dbefb9.jpg')}
@@ -220,7 +230,7 @@ export default function HomeScreen({ onLogout, onNavigateLocation }: HomeScreenP
               <View style={styles.carouselInactive} />
               <View style={styles.carouselInactive} />
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Middle Section - Categories */}
@@ -289,7 +299,7 @@ export default function HomeScreen({ onLogout, onNavigateLocation }: HomeScreenP
         
         <TouchableOpacity 
           style={[styles.navItem, activeTab === 'appointment' && styles.activeNavItem]}
-          onPress={() => setActiveTab('appointment')}
+          onPress={handleNavigateAppointments}
         >
           <MaterialIcons 
             name="event" 
@@ -409,6 +419,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: '#000000',
+  },
+  searchPlaceholder: {
+    flex: 1,
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#9CA3AF',
   },
 
   // Banner
