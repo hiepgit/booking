@@ -14,8 +14,9 @@ import FindDoctorsScreen from './src/screens/FindDoctorsScreen';
 import DoctorDetailsScreen from './src/screens/DoctorDetailsScreen';
 import SelectTimeScreen from './src/screens/SelectTimeScreen';
 import ManageAppointmentScreen from './src/screens/ManageAppointmentScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
-type Screen = 'landing' | 'onboarding' | 'signin' | 'signup' | 'verify-email' | 'forgot-password' | 'reset-password' | 'verify-reset-email' | 'edit-profile' | 'main-app' | 'location' | 'find-doctors' | 'doctor-details' | 'select-time' | 'manage-appointments';
+type Screen = 'landing' | 'onboarding' | 'signin' | 'signup' | 'verify-email' | 'forgot-password' | 'reset-password' | 'verify-reset-email' | 'edit-profile' | 'main-app' | 'location' | 'find-doctors' | 'doctor-details' | 'select-time' | 'manage-appointments' | 'profile';
 
 type UserData = {
   name: string;
@@ -99,6 +100,11 @@ export default function App(): ReactElement {
   const navigateToMainApp = (): void => {
     console.log('Navigating to main app...');
     setCurrentScreen('main-app');
+  };
+
+  const navigateToProfile = (): void => {
+    console.log('Navigating to profile screen...');
+    setCurrentScreen('profile');
   };
 
   switch (currentScreen) {
@@ -210,6 +216,7 @@ export default function App(): ReactElement {
           onNavigateLocation={navigateToLocation}
           onNavigateFindDoctors={navigateToFindDoctors}
           onNavigateAppointments={navigateToManageAppointments}
+          onNavigateProfile={navigateToProfile}
         />
       );
     case 'location':
@@ -217,7 +224,7 @@ export default function App(): ReactElement {
         <LocationScreen 
           onNavigateHome={navigateToMainApp}
           onNavigateAppointment={navigateToManageAppointments}
-          onNavigateProfile={() => console.log('Navigate to profile')}
+          onNavigateProfile={navigateToProfile}
         />
       );
     case 'find-doctors':
@@ -242,6 +249,7 @@ export default function App(): ReactElement {
             console.log('Appointment confirmed for:', date, startTime, '-', endTime);
             // TODO: Navigate to confirmation screen
           }}
+          onNavigateToMyBookings={navigateToManageAppointments}
         />
       );
     case 'manage-appointments':
@@ -249,7 +257,22 @@ export default function App(): ReactElement {
         <ManageAppointmentScreen 
           onNavigateHome={navigateToMainApp}
           onNavigateLocation={navigateToLocation}
-          onNavigateProfile={() => console.log('Navigate to profile')}
+          onNavigateProfile={navigateToProfile}
+        />
+      );
+    case 'profile':
+      return (
+        <ProfileScreen 
+          onNavigateHome={navigateToMainApp}
+          onNavigateLocation={navigateToLocation}
+          onNavigateAppointments={navigateToManageAppointments}
+          onNavigateEditProfile={() => console.log('Navigate to edit profile')}
+          onNavigateFavorites={() => console.log('Navigate to favorites')}
+          onNavigateNotifications={() => console.log('Navigate to notifications')}
+          onNavigateSettings={() => console.log('Navigate to settings')}
+          onNavigateHelp={() => console.log('Navigate to help')}
+          onNavigateTerms={() => console.log('Navigate to terms')}
+          onLogout={navigateToLanding}
         />
       );
     case 'landing':
