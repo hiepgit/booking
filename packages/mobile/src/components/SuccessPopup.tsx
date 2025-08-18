@@ -15,6 +15,7 @@ const { width, height } = Dimensions.get('window');
 interface SuccessPopupProps {
   visible: boolean;
   onClose: () => void;
+  onViewAppointments?: () => void;
   appointmentDetails: {
     date: string;
     startTime: string;
@@ -26,8 +27,17 @@ interface SuccessPopupProps {
 export default function SuccessPopup({ 
   visible, 
   onClose, 
+  onViewAppointments,
   appointmentDetails 
 }: SuccessPopupProps) {
+  const handleViewAppointments = () => {
+    if (onViewAppointments) {
+      onViewAppointments();
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -78,7 +88,7 @@ export default function SuccessPopup({
 
           {/* Action Buttons */}
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.primaryButton} onPress={onClose}>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleViewAppointments}>
               <Text style={styles.primaryButtonText}>Xem lịch hẹn</Text>
             </TouchableOpacity>
             
