@@ -185,6 +185,28 @@ export default function LocationScreen({
     </View>
   );
 
+  const renderBottomNavigation = () => (
+    <View style={styles.bottomNavigation}>
+      <TouchableOpacity style={styles.navItem} onPress={onNavigateHome}>
+        <MaterialIcons name="home" size={24} color="#9CA3AF" />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={[styles.navItem, styles.activeNavItem]}>
+        <View style={styles.locationIconContainer}>
+          <MaterialIcons name="location-on" size={24} color="#4B5563" />
+        </View>
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.navItem} onPress={onNavigateAppointment}>
+        <MaterialIcons name="event" size={24} color="#9CA3AF" />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.navItem} onPress={onNavigateProfile}>
+        <MaterialIcons name="person" size={24} color="#9CA3AF" />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -247,35 +269,7 @@ export default function LocationScreen({
       </View>
 
       {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={handleNavigateHome}
-        >
-          <MaterialIcons name="home" size={24} color="#9CA3AF" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.navItem, styles.activeNavItem]}
-          onPress={() => setActiveTab('location')}
-        >
-          <MaterialIcons name="location-on" size={24} color="#4B5563" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={handleNavigateAppointment}
-        >
-          <MaterialIcons name="event" size={24} color="#9CA3AF" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={handleNavigateProfile}
-        >
-          <MaterialIcons name="person-outline" size={24} color="#9CA3AF" />
-        </TouchableOpacity>
-      </View>
+      {renderBottomNavigation()}
     </SafeAreaView>
   );
 }
@@ -541,7 +535,7 @@ const styles = StyleSheet.create({
   },
 
   // Bottom Navigation
-  bottomNav: {
+  bottomNavigation: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -560,6 +554,14 @@ const styles = StyleSheet.create({
     borderRadius: 38,
   },
   activeNavItem: {
+    backgroundColor: '#F3F4F6',
+  },
+  locationIconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 38,
     backgroundColor: '#F3F4F6',
   },
 });
