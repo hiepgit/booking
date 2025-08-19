@@ -20,34 +20,34 @@ async function main() {
   console.log('Creating specialties...');
   const specialties = await Promise.all([
     prisma.specialty.upsert({
-      where: { name: 'Cardiology' },
+      where: { name: 'Tim mạch' },
       update: {},
-      create: { name: 'Cardiology', description: 'Heart & cardiovascular diseases', icon: '❤️' },
+      create: { name: 'Tim mạch', description: 'Chuyên khoa về tim và mạch máu', icon: '❤️' },
     }),
     prisma.specialty.upsert({
-      where: { name: 'Neurology' },
+      where: { name: 'Thần kinh' },
       update: {},
-      create: { name: 'Neurology', description: 'Nervous system disorders', icon: '🧠' },
+      create: { name: 'Thần kinh', description: 'Chuyên khoa về hệ thần kinh', icon: '🧠' },
     }),
     prisma.specialty.upsert({
-      where: { name: 'Orthopedics' },
+      where: { name: 'Chấn thương chỉnh hình' },
       update: {},
-      create: { name: 'Orthopedics', description: 'Bones, joints & muscles', icon: '🦴' },
+      create: { name: 'Chấn thương chỉnh hình', description: 'Chuyên khoa về xương khớp và chấn thương', icon: '🦴' },
     }),
     prisma.specialty.upsert({
-      where: { name: 'Dermatology' },
+      where: { name: 'Da liễu' },
       update: {},
-      create: { name: 'Dermatology', description: 'Skin conditions', icon: '🩺' },
+      create: { name: 'Da liễu', description: 'Chuyên khoa về da và các bệnh ngoài da', icon: '🩺' },
     }),
     prisma.specialty.upsert({
-      where: { name: 'Pediatrics' },
+      where: { name: 'Nhi khoa' },
       update: {},
-      create: { name: 'Pediatrics', description: 'Children\'s health', icon: '👶' },
+      create: { name: 'Nhi khoa', description: 'Chuyên khoa về trẻ em', icon: '👶' },
     }),
     prisma.specialty.upsert({
-      where: { name: 'General Medicine' },
+      where: { name: 'Nội tổng hợp' },
       update: {},
-      create: { name: 'General Medicine', description: 'Primary care & general health', icon: '🏥' },
+      create: { name: 'Nội tổng hợp', description: 'Chuyên khoa nội tổng hợp và chăm sóc sức khỏe ban đầu', icon: '🏥' },
     }),
   ]);
 

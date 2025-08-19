@@ -10,6 +10,9 @@ import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import socialAuthRouter from './routes/socialAuth.js';
 import meRouter from './routes/me.js';
+import doctorsRouter from './routes/doctors.js';
+import specialtiesRouter from './routes/specialties.js';
+import reviewsRouter from './routes/reviews.js';
 import { getAppVersion } from './libs/version.js';
 
 const env = loadEnv();
@@ -55,6 +58,11 @@ export function createServer() {
   
   // Protected routes
   app.use('/me', meRouter);
+  
+  // API routes
+  app.use('/api/doctors', doctorsRouter);
+  app.use('/api/specialties', specialtiesRouter);
+  app.use('/api/reviews', reviewsRouter);
 
   // Root endpoint
   app.get('/', (_req, res) => {
