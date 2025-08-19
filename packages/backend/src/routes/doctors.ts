@@ -300,7 +300,7 @@ router.post('/verify-license', requireAuth, async (req, res, next) => {
  *       400:
  *         description: Invalid query parameters
  */
-router.get('/', async (req, res, next) => {
+router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { page = 1, limit = 10, sortBy = 'rating', sortOrder = 'desc' } = req.query;
     
@@ -407,9 +407,23 @@ router.get('/', async (req, res, next) => {
  *       400:
  *         description: Invalid query parameters
  */
-router.get('/search', async (req, res, next) => {
+router.get('/search', requireAuth, async (req, res, next) => {
   try {
-    const filters = DoctorSearchSchema.parse(req.query);
+    // Convert string query params to appropriate types
+    const queryParams: any = { ...req.query };
+    
+    // Convert numeric fields
+    if (queryParams.minRating) queryParams.minRating = Number(queryParams.minRating);
+    if (queryParams.minFee) queryParams.minFee = Number(queryParams.minFee);
+    if (queryParams.maxFee) queryParams.maxFee = Number(queryParams.maxFee);
+    if (queryParams.experience) queryParams.experience = Number(queryParams.experience);
+    if (queryParams.page) queryParams.page = Number(queryParams.page);
+    if (queryParams.limit) queryParams.limit = Number(queryParams.limit);
+    
+    // Convert boolean fields
+    if (queryParams.available) queryParams.available = queryParams.available === 'true';
+    
+    const filters = DoctorSearchSchema.parse(queryParams);
     const result = await DoctorService.searchDoctors(filters);
     res.json(result);
   } catch (err) {
@@ -459,7 +473,7 @@ router.get('/filters', async (req, res, next) => {
  *       404:
  *         description: Doctor not found
  */
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const doctor = await DoctorService.getDoctorById(id);
@@ -557,7 +571,7 @@ router.get('/:id/stats', async (req, res, next) => {
  *       404:
  *         description: Doctor not found
  */
-router.get('/:id/reviews', async (req, res, next) => {
+router.get('/:id/reviews', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const filters = ReviewFiltersSchema.parse(req.query);
