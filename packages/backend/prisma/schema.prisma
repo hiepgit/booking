@@ -103,6 +103,11 @@ model User {
   receivedMessages  Message[] @relation("ReceivedMessages")
 
   @@map("users")
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@index([isActive])
+  @@index([isVerified])
 }
 
 model Patient {
@@ -123,6 +128,8 @@ model Patient {
   reviews         Review[]
 
   @@map("patients")
+  @@index([bloodType])
+  @@index([insuranceNumber])
 }
 
 model Doctor {
@@ -153,6 +160,11 @@ model Doctor {
   clinicDoctors     ClinicDoctor[]
 
   @@map("doctors")
+  @@index([specialtyId])
+  @@index([averageRating])
+  @@index([experience])
+  @@index([isAvailable])
+  @@index([consultationFee])
 }
 
 model Specialty {
@@ -165,6 +177,7 @@ model Specialty {
   doctors     Doctor[]
 
   @@map("specialties")
+  @@index([name])
 }
 
 model Clinic {
@@ -195,6 +208,9 @@ model Clinic {
   appointments  Appointment[]
 
   @@map("clinics")
+  @@index([name])
+  @@index([latitude, longitude])
+  @@index([openTime, closeTime])
 }
 
 model ClinicDoctor {
@@ -213,6 +229,9 @@ model ClinicDoctor {
 
   @@unique([clinicId, doctorId])
   @@map("clinic_doctors")
+  @@index([clinicId])
+  @@index([doctorId])
+  @@index([workingDays])
 }
 
 model Schedule {
@@ -236,6 +255,10 @@ model Schedule {
 
   @@unique([doctorId, date, startTime])
   @@map("schedules")
+  @@index([doctorId, date])
+  @@index([date, startTime])
+  @@index([status])
+  @@index([doctorId, date, status])
 }
 
 model Appointment {
@@ -273,6 +296,15 @@ model Appointment {
   medicalRecord   MedicalRecord?
 
   @@map("appointments")
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([clinicId])
+  @@index([appointmentDate])
+  @@index([status])
+  @@index([type])
+  @@index([patientId, status])
+  @@index([doctorId, appointmentDate])
+  @@index([appointmentDate, startTime])
 }
 
 model Payment {
@@ -299,6 +331,12 @@ model Payment {
   patient         Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@map("payments")
+  @@index([patientId])
+  @@index([status])
+  @@index([method])
+  @@index([transactionId])
+  @@index([createdAt])
+  @@index([patientId, status])
 }
 
 model MedicalRecord {
@@ -328,6 +366,11 @@ model MedicalRecord {
   doctor          Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@map("medical_records")
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([patientId, type])
 }
 
 model Review {
@@ -349,6 +392,10 @@ model Review {
 
   @@unique([patientId, doctorId])
   @@map("reviews")
+  @@index([doctorId])
+  @@index([rating])
+  @@index([createdAt])
+  @@index([doctorId, rating])
 }
 
 model Notification {
@@ -371,6 +418,11 @@ model Notification {
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+  @@index([userId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([userId, isRead])
 }
 
 model Message {
@@ -394,6 +446,12 @@ model Message {
   receiver   User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([senderId, receiverId])
+  @@index([receiverId, isRead])
 }
 
 // OTP requests for registration and password reset
@@ -413,6 +471,9 @@ model OtpRequest {
 
   @@unique([email, purpose])
   @@map("otp_requests")
+  @@index([email])
+  @@index([expiresAt])
+  @@index([email, purpose])
 }
 
 // System configuration tables
@@ -427,6 +488,7 @@ model AppConfig {
   updatedAt   DateTime @updatedAt
 
   @@map("app_configs")
+  @@index([key])
 }
 
 // Audit log for important actions
@@ -445,4 +507,10 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   @@map("audit_logs")
+  @@index([userId])
+  @@index([action])
+  @@index([tableName])
+  @@index([createdAt])
+  @@index([userId, action])
+  @@index([tableName, recordId])
 }
