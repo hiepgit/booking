@@ -12,14 +12,47 @@ const EnvSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:3001'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().default(100),
+  
+  // JWT Configuration
   JWT_ACCESS_SECRET: z.string().default('change-me'),
   JWT_REFRESH_SECRET: z.string().default('change-me'),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  
+  // SMTP Configuration
   SMTP_HOST: z.string().default('smtp.ethereal.email'),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().default(''),
   SMTP_PASS: z.string().default(''),
+  SMTP_FROM: z.string().default('noreply@healthcare.local'),
+  
+  // OTP Configuration
   OTP_EXPIRES_MINUTES: z.coerce.number().int().positive().default(10),
   OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  
+  // Google OAuth Configuration
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
+  
+  // Facebook OAuth Configuration
+  FACEBOOK_CLIENT_ID: z.string().optional(),
+  FACEBOOK_CLIENT_SECRET: z.string().optional(),
+  FACEBOOK_REDIRECT_URI: z.string().optional(),
+  
+  // Security Configuration
+  BCRYPT_ROUNDS: z.coerce.number().int().positive().default(12),
+  SESSION_SECRET: z.string().default('change-me-session-secret'),
+  
+  // Redis Configuration (for session storage)
+  REDIS_URL: z.string().optional(),
+  
+  // File Upload Configuration
+  UPLOAD_MAX_SIZE: z.coerce.number().default(10 * 1024 * 1024), // 10MB
+  UPLOAD_PATH: z.string().default('./uploads'),
+  
+  // Health Check Configuration
+  HEALTH_CHECK_INTERVAL: z.coerce.number().default(30000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
