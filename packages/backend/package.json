@@ -10,7 +10,8 @@
     "build": "prisma generate && tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "clean": "rimraf dist",
-    "test": "echo \"(todo)\"",
+    "test": "vitest",
+    "test:run": "vitest run",
     "db:seed": "prisma db seed"
   },
   "dependencies": {
@@ -24,9 +25,11 @@
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
+    "multer": "^2.0.2",
     "nodemailer": "^6.9.15",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "uuid": "^11.1.0",
     "zod": "^4.0.17"
   },
   "devDependencies": {
@@ -35,14 +38,17 @@
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/morgan": "^1.9.10",
+    "@types/multer": "^2",
     "@types/node": "^24.2.1",
     "@types/nodemailer": "^6.4.16",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
+    "@types/uuid": "^10.0.0",
     "prisma": "^6.14.0",
     "rimraf": "^6.0.1",
     "tsx": "^4.20.4",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
