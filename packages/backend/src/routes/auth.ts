@@ -5,10 +5,10 @@ import type { UserRole } from '@prisma/client';
 import { loadEnv } from '../config/env.js';
 import { AuthLoginSchema, AuthRegisterSchema, VerifyOtpSchema, TokenPayloadSchema } from '@healthcare/shared/schemas';
 import type { TokenPayload } from '@healthcare/shared/types';
-import { hashPassword, verifyPassword, validatePasswordStrength } from '../services/password.js';
-import { signAccessToken, signRefreshToken, verifyRefreshToken, blacklistToken } from '../services/jwt.js';
-import { createOtp, verifyOtp as verifyOtpService } from '../services/otp.js';
-import { sendOtpEmail, sendPasswordResetEmail, sendWelcomeEmail } from '../services/mailer.js';
+import { hashPassword, verifyPassword, validatePasswordStrength } from '../services/password.service.js';
+import { signAccessToken, signRefreshToken, verifyRefreshToken, blacklistToken } from '../services/jwt.service.js';
+import { createOtp, verifyOtp as verifyOtpService } from '../services/otp.service.js';
+import { sendOtpEmail, sendPasswordResetEmail, sendWelcomeEmail } from '../services/mailer.service.js';
 import { 
   authRateLimit, 
   otpRateLimit, 
