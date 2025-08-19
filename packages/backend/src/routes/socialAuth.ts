@@ -7,7 +7,7 @@ import {
   handleSocialLogin,
   validateOAuthState,
   generateOAuthState
-} from '../services/socialAuth.js';
+} from '../services/socialAuth.service.js';
 import { authRateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
