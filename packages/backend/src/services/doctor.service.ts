@@ -499,9 +499,9 @@ export class DoctorService {
       prisma.$queryRaw`
         SELECT DISTINCT 
           TRIM(SPLIT_PART(address, ',', -1)) as city,
-          COUNT(*) as count
-        FROM clinics c
-        INNER JOIN clinic_doctors cd ON c.id = cd.clinic_id
+          COUNT(*)::int as count
+        FROM "clinics" c
+        INNER JOIN "clinic_doctors" cd ON c.id = cd."clinicId"
         GROUP BY city
         ORDER BY count DESC, city ASC
         LIMIT 20
