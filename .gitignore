@@ -24,3 +24,6 @@ INFRASTRUCTURE_README.md
 scripts/
 DATABASE_SCHEMA_README.md
 .github/
+
+# Postman tests
+postman_tests/
