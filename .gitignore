@@ -20,3 +20,6 @@ packages/*/.env
 
 # Cursor workspace
 .cursor/
+INFRASTRUCTURE_README.md
+scripts/
+DATABASE_SCHEMA_README.md
