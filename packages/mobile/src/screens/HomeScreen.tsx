@@ -15,6 +15,7 @@ import {
   Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useUnreadCount } from '../contexts/NotificationContext';
 import { getDoctors, Doctor } from '../services/doctors.service';
 import { getSpecialties, Specialty } from '../services/specialties.service';
 
@@ -26,6 +27,8 @@ type HomeScreenProps = {
   onNavigateFindDoctors?: () => void;
   onNavigateAppointments?: () => void;
   onNavigateProfile?: () => void;
+  onNavigateNotifications?: () => void;
+  onNavigateTest?: () => void;
 };
 
 type Category = {
@@ -84,13 +87,16 @@ function isFunction(fn: unknown): fn is (() => void) {
   return typeof fn === 'function';
 }
 
-export default function HomeScreen({ 
-  onLogout, 
-  onNavigateLocation, 
-  onNavigateFindDoctors, 
+export default function HomeScreen({
+  onLogout,
+  onNavigateLocation,
+  onNavigateFindDoctors,
   onNavigateAppointments,
-  onNavigateProfile 
+  onNavigateProfile,
+  onNavigateNotifications
 }: HomeScreenProps): ReactElement {
+  // Get unread count from notification context
+  const { unreadCount } = useUnreadCount();
   const [activeTab, setActiveTab] = useState<'home' | 'location' | 'appointment' | 'profile'>('home');
 
   // Real data states
@@ -267,9 +273,18 @@ export default function HomeScreen({
               </View>
             </View>
             
-            <TouchableOpacity style={styles.notificationButton}>
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={onNavigateNotifications}
+            >
               <MaterialIcons name="notifications" size={24} color="#4B5563" />
-              <View style={styles.notificationDot} />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount.toString()}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -500,16 +515,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
-  notificationDot: {
+  notificationBadge: {
     position: 'absolute',
-    width: 5,
-    height: 5,
-    backgroundColor: '#EF0000',
-    borderRadius: 2.5,
-    top: 8,
-    right: 8,
-    borderWidth: 0.3,
+    top: -2,
+    right: -2,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
     borderColor: '#FFFFFF',
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 
   // Search Bar
