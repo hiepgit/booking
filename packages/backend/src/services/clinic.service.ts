@@ -9,12 +9,21 @@ export const createClinicSchema = z.object({
   name: z.string().min(1, 'Clinic name is required'),
   address: z.string().min(1, 'Address is required'),
   phone: z.string().min(1, 'Phone number is required'),
-  email: z.string().email().optional(),
+  email: z.string().refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
+    message: 'Invalid email format'
+  }).optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   openTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:mm)'),
   closeTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:mm)'),
-  images: z.array(z.string().url()).optional().default([]),
+  images: z.array(z.string().refine((val) => {
+    try {
+      new URL(val);
+      return true;
+    } catch {
+      return false;
+    }
+  }, { message: 'Invalid URL format' })).optional().default([]),
   description: z.string().optional(),
 });
 
@@ -45,7 +54,9 @@ export const clinicSearchSchema = z.object({
 });
 
 export const addDoctorToClinicSchema = z.object({
-  doctorId: z.string().cuid(),
+  doctorId: z.string().refine((val) => /^c[a-z0-9]{24}$/.test(val), {
+    message: 'Invalid CUID format'
+  }),
   workingDays: z.array(z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'])),
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:mm)'),
   endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:mm)'),
@@ -292,6 +303,18 @@ export class ClinicService {
             specialtyId: {
               in: specialtyIds
             }
+          }
+        }
+      };
+    }
+
+    // Operating day filter - find clinics with doctors working on specific day
+    if (operatingDay) {
+      where.clinicDoctors = {
+        some: {
+          ...(where.clinicDoctors?.some || {}),
+          workingDays: {
+            has: operatingDay
           }
         }
       };
@@ -623,7 +646,11 @@ export class ClinicService {
         clinicDoctors: {
           include: {
             doctor: {
-              include: {
+              select: {
+                id: true,
+                averageRating: true,
+                totalReviews: true,
+                consultationFee: true,
                 user: {
                   select: {
                     firstName: true,
@@ -644,6 +671,22 @@ export class ClinicService {
       },
     });
 
-    return clinic;
+    if (!clinic) {
+      return null;
+    }
+
+    // Transform the result to match ClinicWithDoctors type
+    const transformedClinic: ClinicWithDoctors = {
+      ...clinic,
+      clinicDoctors: clinic.clinicDoctors.map(cd => ({
+        ...cd,
+        doctor: {
+          ...cd.doctor,
+          consultationFee: Number(cd.doctor.consultationFee), // Convert Decimal to number
+        },
+      })),
+    };
+
+    return transformedClinic;
   }
 }
