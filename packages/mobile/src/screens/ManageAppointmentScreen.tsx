@@ -12,8 +12,11 @@ import {
   Image,
   Animated,
   Easing,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { getMyAppointments, cancelAppointment, type Appointment, type AppointmentStatus } from '../services/appointments.service';
 
 const { width } = Dimensions.get('window');
 
@@ -24,51 +27,46 @@ type ManageAppointmentScreenProps = {
   onNavigateProfile?: () => void;
 };
 
-type AppointmentStatus = 'upcoming' | 'completed' | 'canceled';
+type TabStatus = 'upcoming' | 'completed' | 'canceled';
 
-type Appointment = {
-  id: string;
-  date: string;
-  time: string;
-  doctorName: string;
-  specialty: string;
-  location: string;
-  doctorImage: string;
-  status: AppointmentStatus;
+// Helper function to map API status to tab status
+const mapStatusToTab = (status: AppointmentStatus): TabStatus => {
+  switch (status) {
+    case 'PENDING':
+    case 'CONFIRMED':
+    case 'IN_PROGRESS':
+      return 'upcoming';
+    case 'COMPLETED':
+      return 'completed';
+    case 'CANCELLED':
+    case 'NO_SHOW':
+      return 'canceled';
+    default:
+      return 'upcoming';
+  }
 };
 
-const mockAppointments: Appointment[] = [
-  {
-    id: '1',
-    date: '14 Tháng 5, 2023 - 10:00 Sáng',
-    time: '10:00 Sáng',
-    doctorName: 'Bác sĩ David Patel',
-    specialty: 'Bác sĩ Tim mạch',
-    location: 'Trung tâm Tim mạch, Hoa Kỳ',
-    doctorImage: 'https://example.com/doctor1.jpg',
-    status: 'upcoming',
-  },
-  {
-    id: '2',
-    date: '15 Tháng 5, 2023 - 2:30 Chiều',
-    time: '2:30 Chiều',
-    doctorName: 'Bác sĩ Sarah Johnson',
-    specialty: 'Bác sĩ Da liễu',
-    location: 'Phòng khám Da liễu, Hoa Kỳ',
-    doctorImage: 'https://example.com/doctor2.jpg',
-    status: 'upcoming',
-  },
-  {
-    id: '3',
-    date: '10 Tháng 5, 2023 - 9:00 Sáng',
-    time: '9:00 Sáng',
-    doctorName: 'Bác sĩ Michael Chen',
-    specialty: 'Bác sĩ Thần kinh',
-    location: 'Viện Thần kinh, Hoa Kỳ',
-    doctorImage: 'https://example.com/doctor3.jpg',
-    status: 'completed',
-  },
-];
+// Helper function to format appointment data for display
+const formatAppointment = (appointment: Appointment) => {
+  const date = new Date(appointment.appointmentDate);
+  const formattedDate = date.toLocaleDateString('vi-VN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  return {
+    id: appointment.id,
+    date: `${formattedDate} - ${appointment.startTime}`,
+    time: appointment.startTime,
+    doctorName: `Bác sĩ ${appointment.doctor.user.firstName} ${appointment.doctor.user.lastName}`,
+    specialty: appointment.doctor.specialty.name,
+    location: appointment.clinic?.name || 'Tư vấn trực tuyến',
+    doctorImage: appointment.doctor.user.avatar || '',
+    status: mapStatusToTab(appointment.status),
+    originalAppointment: appointment
+  };
+};
 
 export default function ManageAppointmentScreen({
   onBack,
@@ -76,19 +74,77 @@ export default function ManageAppointmentScreen({
   onNavigateLocation,
   onNavigateProfile,
 }: ManageAppointmentScreenProps): ReactElement {
-  const [activeTab, setActiveTab] = useState<AppointmentStatus>('upcoming');
+  const [activeTab, setActiveTab] = useState<TabStatus>('upcoming');
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
-  
+
   // Animation values - tất cả hooks phải ở đầu component
   const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(1)).current;
   const contentScale = useRef(new Animated.Value(1)).current;
   const swipeFeedback = useRef(new Animated.Value(0)).current;
 
-  const filteredAppointments = mockAppointments.filter(
-    appointment => appointment.status === activeTab
-  );
+  // Load appointments from API
+  useEffect(() => {
+    loadAppointments();
+  }, []);
+
+  const loadAppointments = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const result = await getMyAppointments();
+
+      if (result.success && result.data) {
+        setAppointments(result.data.data);
+      } else {
+        setError(result.error?.message || 'Không thể tải danh sách lịch hẹn');
+      }
+    } catch (err) {
+      setError('Đã xảy ra lỗi khi tải danh sách lịch hẹn');
+      console.error('Load appointments error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId: string) => {
+    Alert.alert(
+      'Hủy lịch hẹn',
+      'Bạn có chắc chắn muốn hủy lịch hẹn này?',
+      [
+        { text: 'Không', style: 'cancel' },
+        {
+          text: 'Hủy lịch hẹn',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await cancelAppointment(appointmentId);
+
+              if (result.success) {
+                // Reload appointments to reflect the change
+                await loadAppointments();
+                Alert.alert('Thành công', 'Lịch hẹn đã được hủy');
+              } else {
+                Alert.alert('Lỗi', result.error?.message || 'Không thể hủy lịch hẹn');
+              }
+            } catch (err) {
+              Alert.alert('Lỗi', 'Đã xảy ra lỗi khi hủy lịch hẹn');
+              console.error('Cancel appointment error:', err);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const filteredAppointments = appointments
+    .map(formatAppointment)
+    .filter(appointment => appointment.status === activeTab);
 
   // Animate tab indicator
   useEffect(() => {
@@ -238,37 +294,45 @@ export default function ManageAppointmentScreen({
     );
   };
 
-  const renderAppointmentCard = (appointment: Appointment, index: number) => {
+  const renderAppointmentCard = (appointment: any, index: number) => {
     return (
       <View key={appointment.id} style={styles.appointmentCard}>
         {/* Date Header */}
         <Text style={styles.dateHeader}>{appointment.date}</Text>
-        
+
         {/* Separator */}
         <View style={styles.separator} />
-        
+
         {/* Doctor Info */}
         <View style={styles.doctorInfo}>
           <View style={styles.doctorImageContainer}>
-            <View style={styles.doctorImagePlaceholder}>
-              <MaterialIcons name="person" size={40} color="#9CA3AF" />
-            </View>
+            {appointment.doctorImage ? (
+              <Image
+                source={{ uri: appointment.doctorImage }}
+                style={styles.doctorImage}
+                defaultSource={require('../../assets/behnazsabaa_Portrait_of_Smiling_male_Medical_Doctor__Style_of_H_22f8a7ff-a589-4d1b-880a-172332b8a241.jpg')}
+              />
+            ) : (
+              <View style={styles.doctorImagePlaceholder}>
+                <MaterialIcons name="person" size={40} color="#9CA3AF" />
+              </View>
+            )}
           </View>
-          
+
           <View style={styles.doctorDetails}>
             <Text style={styles.doctorName}>{appointment.doctorName}</Text>
             <Text style={styles.specialty}>{appointment.specialty}</Text>
-            
+
             <View style={styles.locationContainer}>
               <MaterialIcons name="location-on" size={14} color="#4B5563" />
               <Text style={styles.location}>{appointment.location}</Text>
             </View>
           </View>
         </View>
-        
+
         {/* Separator */}
         <View style={styles.separator} />
-        
+
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           {appointment.status === 'upcoming' ? (
@@ -276,7 +340,10 @@ export default function ManageAppointmentScreen({
               <TouchableOpacity style={styles.secondaryButton}>
                 <Text style={styles.secondaryButtonText}>Đổi lịch</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.primaryButton}>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => handleCancelAppointment(appointment.originalAppointment.id)}
+              >
                 <Text style={styles.primaryButtonText}>Hủy lịch</Text>
               </TouchableOpacity>
             </>
@@ -363,13 +430,27 @@ export default function ManageAppointmentScreen({
           }}
         >
           {/* Appointments List */}
-          <ScrollView 
+          <ScrollView
             ref={scrollViewRef}
-            style={styles.appointmentsList} 
+            style={styles.appointmentsList}
             showsVerticalScrollIndicator={false}
             scrollEnabled={true}
           >
-            {filteredAppointments.length > 0 ? (
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Đang tải lịch hẹn...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <MaterialIcons name="error-outline" size={64} color="#EF4444" />
+                <Text style={styles.errorTitle}>Không thể tải lịch hẹn</Text>
+                <Text style={styles.errorSubtitle}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={loadAppointments}>
+                  <Text style={styles.retryButtonText}>Thử lại</Text>
+                </TouchableOpacity>
+              </View>
+            ) : filteredAppointments.length > 0 ? (
               filteredAppointments.map((appointment, index) => renderAppointmentCard(appointment, index))
             ) : (
               <View style={styles.emptyState}>
@@ -378,7 +459,7 @@ export default function ManageAppointmentScreen({
                   Không có lịch hẹn {activeTab === 'upcoming' ? 'sắp tới' : activeTab === 'completed' ? 'đã hoàn thành' : 'đã hủy'}
                 </Text>
                 <Text style={styles.emptyStateSubtitle}>
-                  {activeTab === 'upcoming' 
+                  {activeTab === 'upcoming'
                     ? 'Bạn chưa có lịch hẹn nào sắp tới'
                     : activeTab === 'completed'
                     ? 'Bạn chưa có lịch hẹn nào đã hoàn thành'
@@ -616,6 +697,59 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C2A3A',
     borderRadius: 50,
     zIndex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 16,
+    fontFamily: 'Inter',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginTop: 16,
+    fontFamily: 'Inter',
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
+    fontFamily: 'Inter',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Inter',
+  },
+  doctorImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
 
 });
