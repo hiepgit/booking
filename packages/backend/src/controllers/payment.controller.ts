@@ -7,7 +7,7 @@ import { prisma } from '../libs/prisma.js';
 // Validation schemas
 const CreatePaymentSchema = z.object({
   appointmentId: z.string().min(1, 'Appointment ID is required'),
-  returnUrl: z.string().url().optional(),
+  returnUrl: z.string().optional(),
 });
 
 const VNPayCallbackSchema = z.object({
@@ -33,7 +33,7 @@ export class PaymentController {
   static async createVNPayPayment(req: Request, res: Response) {
     try {
       const { appointmentId, returnUrl } = CreatePaymentSchema.parse(req.body);
-      const userId = req.user.sub;
+      const userId = req.user?.sub;
 
       // Find appointment and verify ownership
       const appointment = await prisma.appointment.findFirst({
@@ -178,7 +178,7 @@ export class PaymentController {
         await RealtimeNotificationService.handlePaymentStatusChange(
           result.appointment.id,
           'SUCCESS',
-          result.payment.amount
+          Number(result.payment.amount)
         );
       } else {
         await RealtimeNotificationService.handlePaymentStatusChange(
@@ -219,7 +219,7 @@ export class PaymentController {
         await RealtimeNotificationService.handlePaymentStatusChange(
           result.appointment.id,
           'SUCCESS',
-          result.payment.amount
+          Number(result.payment.amount)
         );
       }
 
@@ -247,7 +247,7 @@ export class PaymentController {
   static async getPaymentStatus(req: Request, res: Response) {
     try {
       const { paymentId } = req.params;
-      const userId = req.user.sub;
+      const userId = req.user?.sub;
 
       const payment = await prisma.payment.findFirst({
         where: {
