@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ReactElement } from 'react';
 import {
   View,
@@ -10,9 +10,13 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
-  Dimensions
+  Dimensions,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { getDoctors, searchDoctors, Doctor } from '../services/doctors.service';
+import { getSpecialties, Specialty } from '../services/specialties.service';
 
 const { width } = Dimensions.get('window');
 
@@ -21,63 +25,9 @@ type FindDoctorsScreenProps = {
   onDoctorPress?: (doctorId: string) => void;
 };
 
-type Doctor = {
-  id: string;
-  name: string;
-  specialty: string;
-  location: string;
-  rating: number;
-  reviews: number;
-  image: any;
-};
+// Using Doctor type from service
 
-const doctors: Doctor[] = [
-  {
-    id: '1',
-    name: 'Dr. David Patel',
-    specialty: 'Cardiologist',
-    location: 'Golden Cardiology Center',
-    rating: 5.0,
-    reviews: 405,
-    image: require('../../assets/behnazsabaa_Portrait_of_Smiling_male_Medical_Doctor__Style_of_H_22f8a7ff-a589-4d1b-880a-172332b8a241.jpg')
-  },
-  {
-    id: '2',
-    name: 'Dr. Sarah Johnson',
-    specialty: 'Cardiologist',
-    location: 'Golden Cardiology Center',
-    rating: 5.0,
-    reviews: 405,
-    image: require('../../assets/behnazsabaa_Portrait_of_Smiling_Medical_Doctor__Style_of_Her_Fi_bd099184-b9f1-403f-bc9c-766786d0ee9b.jpg')
-  },
-  {
-    id: '3',
-    name: 'Dr. Michael Chen',
-    specialty: 'Cardiologist',
-    location: 'Golden Cardiology Center',
-    rating: 4.5,
-    reviews: 405,
-    image: require('../../assets/behnazsabaa_Portrait_of_Smiling_Medical_Doctor_male_and_feamale_0a652aa2-f315-4b9e-a050-ab46c6c89db6.jpg')
-  },
-  {
-    id: '4',
-    name: 'Dr. Emily Rodriguez',
-    specialty: 'Cardiologist',
-    location: 'Golden Cardiology Center',
-    rating: 5.0,
-    reviews: 405,
-    image: require('../../assets/behnazsabaa_Smiling_Doctors_Portrait__Style_of_Her_Film_with_it_6453a87e-ad53-4df3-a535-816164cb1b00.jpg')
-  },
-  {
-    id: '5',
-    name: 'Dr. Sara Watson',
-    specialty: 'Cardiologist',
-    location: 'Golden Cardiology Center',
-    rating: 5.0,
-    reviews: 405,
-    image: require('../../assets/behnazsabaa_Smiling_Medical_Doctor__Style_of_Her_Film_with_Soft_b23f1351-dbc2-44fb-b9f1-5d970c02fce4.jpg')
-  }
-];
+// Mock data removed - using real API data
 
 const tabs = ['List', 'Map', 'Calendar', 'Filter'];
 
@@ -88,6 +38,108 @@ function isFunction(fn: unknown): fn is Function {
 export default function FindDoctorsScreen({ onBack, onDoctorPress }: FindDoctorsScreenProps): ReactElement {
   const [activeTab, setActiveTab] = useState(0);
   const [searchText, setSearchText] = useState('');
+
+  // Real data states
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedSpecialtyId, setSelectedSpecialtyId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [hasMoreData, setHasMoreData] = useState<boolean>(true);
+
+  // Fetch data when component mounts
+  useEffect(() => {
+    fetchInitialData();
+    fetchSpecialties();
+  }, []);
+
+  // Search when searchText changes (with debounce)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchText.trim()) {
+        handleSearch();
+      } else {
+        fetchInitialData();
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchText, selectedSpecialtyId]);
+
+  const fetchInitialData = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const result = await getDoctors({
+        page: 1,
+        limit: 20,
+        specialtyId: selectedSpecialtyId || undefined
+      });
+
+      if (result.success && result.data) {
+        setDoctors(result.data.data);
+        setCurrentPage(1);
+        setHasMoreData(result.data.pagination.page < result.data.pagination.totalPages);
+        console.log('✅ FindDoctorsScreen: Initial doctors loaded successfully');
+      } else {
+        console.log('❌ FindDoctorsScreen: Failed to load doctors:', result.error);
+        setError(result.error?.message || 'Failed to load doctors');
+      }
+    } catch (error: any) {
+      console.error('❌ FindDoctorsScreen: Unexpected error loading doctors:', error);
+      setError('Unexpected error loading doctors');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchSpecialties = async (): Promise<void> => {
+    try {
+      const result = await getSpecialties();
+
+      if (result.success && result.data) {
+        setSpecialties(result.data);
+        console.log('✅ FindDoctorsScreen: Specialties loaded successfully');
+      } else {
+        console.log('❌ FindDoctorsScreen: Failed to load specialties:', result.error);
+      }
+    } catch (error: any) {
+      console.error('❌ FindDoctorsScreen: Unexpected error loading specialties:', error);
+    }
+  };
+
+  const handleSearch = async (): Promise<void> => {
+    if (!searchText.trim()) return;
+
+    try {
+      setIsSearching(true);
+      setError(null);
+
+      const result = await searchDoctors(searchText.trim(), {
+        page: 1,
+        limit: 20,
+        specialtyId: selectedSpecialtyId || undefined
+      });
+
+      if (result.success && result.data) {
+        setDoctors(result.data.data);
+        setCurrentPage(1);
+        setHasMoreData(result.data.pagination.page < result.data.pagination.totalPages);
+        console.log('✅ FindDoctorsScreen: Search completed:', result.data.data.length, 'results');
+      } else {
+        console.log('❌ FindDoctorsScreen: Search failed:', result.error);
+        setError(result.error?.message || 'Search failed');
+      }
+    } catch (error: any) {
+      console.error('❌ FindDoctorsScreen: Unexpected search error:', error);
+      setError('Unexpected search error');
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleBack = (): void => {
     if (isFunction(onBack)) {
@@ -118,25 +170,38 @@ export default function FindDoctorsScreen({ onBack, onDoctorPress }: FindDoctors
       style={styles.doctorCard}
       onPress={() => handleDoctorPress(doctor.id)}
     >
-      <Image source={doctor.image} style={styles.doctorImage} />
+      <Image
+        source={
+          doctor.user.avatar
+            ? { uri: doctor.user.avatar }
+            : require('../../assets/behnazsabaa_Portrait_of_Smiling_Medical_Doctor__Style_of_Her_Fi_023af117-7d28-4eff-9146-da3d323b964a.jpg')
+        }
+        style={styles.doctorImage}
+      />
       <View style={styles.doctorInfo}>
         <View style={styles.doctorHeader}>
-          <Text style={styles.doctorName}>{doctor.name}</Text>
+          <Text style={styles.doctorName}>
+            Dr. {doctor.user.firstName} {doctor.user.lastName}
+          </Text>
           <MaterialIcons name="favorite-border" size={16} color="#1F2A37" />
         </View>
         <View style={styles.divider} />
         <View style={styles.doctorDetails}>
-          <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
+          <Text style={styles.doctorSpecialty}>{doctor.specialty.name}</Text>
           <View style={styles.locationContainer}>
             <MaterialIcons name="location-on" size={14} color="#4B5563" />
-            <Text style={styles.locationText}>{doctor.location}</Text>
+            <Text style={styles.locationText}>
+              {doctor.clinicDoctors[0]?.clinic?.address || 'Địa chỉ không có sẵn'}
+            </Text>
           </View>
           <View style={styles.ratingContainer}>
             <View style={styles.starsContainer}>
-              {renderStars(doctor.rating)}
+              {renderStars(doctor.averageRating || 0)}
             </View>
             <View style={styles.ratingDivider} />
-            <Text style={styles.reviewsText}>{doctor.reviews} Reviews</Text>
+            <Text style={styles.reviewsText}>
+              {doctor.totalReviews || 0} Reviews
+            </Text>
           </View>
         </View>
       </View>
@@ -193,14 +258,68 @@ export default function FindDoctorsScreen({ onBack, onDoctorPress }: FindDoctors
         {/* Doctors List */}
         <View style={styles.doctorsList}>
           <View style={styles.listHeader}>
-            <Text style={styles.listTitle}>Bác sĩ</Text>
+            <Text style={styles.listTitle}>
+              Bác sĩ {!isLoading && !isSearching && `(${doctors.length})`}
+            </Text>
             <TouchableOpacity style={styles.sortButton}>
               <Text style={styles.sortText}>Sắp xếp</Text>
               <MaterialIcons name="sort" size={14} color="#6B7280" />
             </TouchableOpacity>
           </View>
-          
-          {doctors.map(renderDoctorCard)}
+
+          {/* Loading State */}
+          {(isLoading || isSearching) && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>
+                {isSearching ? 'Đang tìm kiếm...' : 'Đang tải bác sĩ...'}
+              </Text>
+            </View>
+          )}
+
+          {/* Error State */}
+          {error && !isLoading && !isSearching && (
+            <View style={styles.errorContainer}>
+              <MaterialIcons name="error-outline" size={48} color="#EF4444" />
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={searchText.trim() ? handleSearch : fetchInitialData}
+              >
+                <Text style={styles.retryText}>Thử lại</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !isSearching && !error && doctors.length === 0 && (
+            <View style={styles.emptyContainer}>
+              <MaterialIcons name="search-off" size={48} color="#9CA3AF" />
+              <Text style={styles.emptyText}>
+                {searchText.trim() ? 'Không tìm thấy bác sĩ nào' : 'Chưa có bác sĩ'}
+              </Text>
+            </View>
+          )}
+
+          {/* Doctors List */}
+          {!isLoading && !isSearching && !error && doctors.length > 0 && (
+            <>
+              {doctors.map(renderDoctorCard)}
+
+              {/* Load More Button */}
+              {hasMoreData && (
+                <TouchableOpacity
+                  style={styles.loadMoreButton}
+                  onPress={() => {
+                    // TODO: Implement load more functionality
+                    console.log('Load more doctors');
+                  }}
+                >
+                  <Text style={styles.loadMoreText}>Tải thêm</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -380,5 +499,64 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     color: '#6B7280',
+  },
+
+  // Loading, Error, Empty States
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontFamily: 'Inter',
+  },
+  errorContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontFamily: 'Inter',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontFamily: 'Inter',
+  },
+  loadMoreButton: {
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  loadMoreText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ReactElement } from 'react';
 import {
   View,
@@ -10,9 +10,13 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
-  Dimensions
+  Dimensions,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { getDoctors, Doctor } from '../services/doctors.service';
+import { getSpecialties, Specialty } from '../services/specialties.service';
 
 const { width } = Dimensions.get('window');
 
@@ -88,6 +92,63 @@ export default function HomeScreen({
   onNavigateProfile 
 }: HomeScreenProps): ReactElement {
   const [activeTab, setActiveTab] = useState<'home' | 'location' | 'appointment' | 'profile'>('home');
+
+  // Real data states
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [isLoadingDoctors, setIsLoadingDoctors] = useState<boolean>(true);
+  const [isLoadingSpecialties, setIsLoadingSpecialties] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch data when component mounts
+  useEffect(() => {
+    fetchDoctors();
+    fetchSpecialties();
+  }, []);
+
+  const fetchDoctors = async (): Promise<void> => {
+    try {
+      setIsLoadingDoctors(true);
+      setError(null);
+
+      const result = await getDoctors({ limit: 10 });
+
+      if (result.success && result.data) {
+        setDoctors(result.data.data);
+        console.log('✅ HomeScreen: Doctors loaded successfully');
+      } else {
+        console.log('❌ HomeScreen: Failed to load doctors:', result.error);
+        setError(result.error?.message || 'Failed to load doctors');
+      }
+    } catch (error: any) {
+      console.error('❌ HomeScreen: Unexpected error loading doctors:', error);
+      setError('Unexpected error loading doctors');
+    } finally {
+      setIsLoadingDoctors(false);
+    }
+  };
+
+  const fetchSpecialties = async (): Promise<void> => {
+    try {
+      setIsLoadingSpecialties(true);
+      setError(null);
+
+      const result = await getSpecialties();
+
+      if (result.success && result.data) {
+        setSpecialties(result.data);
+        console.log('✅ HomeScreen: Specialties loaded successfully');
+      } else {
+        console.log('❌ HomeScreen: Failed to load specialties:', result.error);
+        setError(result.error?.message || 'Failed to load specialties');
+      }
+    } catch (error: any) {
+      console.error('❌ HomeScreen: Unexpected error loading specialties:', error);
+      setError('Unexpected error loading specialties');
+    } finally {
+      setIsLoadingSpecialties(false);
+    }
+  };
 
   const handleLogout = (): void => {
     if (isFunction(onLogout)) {
@@ -255,16 +316,37 @@ export default function HomeScreen({
           </View>
 
           <View style={styles.categoriesContainer}>
-            <View style={styles.categoriesRow}>
-              {categories.slice(0, 4).map(category => (
-                <CategoryItem key={category.id} category={category} />
-              ))}
-            </View>
-            <View style={styles.categoriesRow}>
-              {categories.slice(4, 8).map(category => (
-                <CategoryItem key={category.id} category={category} />
-              ))}
-            </View>
+            {isLoadingSpecialties ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#007AFF" />
+                <Text style={styles.loadingText}>Đang tải chuyên khoa...</Text>
+              </View>
+            ) : (
+              <>
+                <View style={styles.categoriesRow}>
+                  {specialties.slice(0, 4).map(specialty => (
+                    <CategoryItem key={specialty.id} category={{
+                      id: specialty.id,
+                      name: specialty.name,
+                      icon: specialty.icon,
+                      color: '#007AFF' // Default color for now
+                    }} />
+                  ))}
+                </View>
+                {specialties.length > 4 && (
+                  <View style={styles.categoriesRow}>
+                    {specialties.slice(4, 8).map(specialty => (
+                      <CategoryItem key={specialty.id} category={{
+                        id: specialty.id,
+                        name: specialty.name,
+                        icon: specialty.icon,
+                        color: '#007AFF' // Default color for now
+                      }} />
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
           </View>
         </View>
 
@@ -277,15 +359,31 @@ export default function HomeScreen({
             </TouchableOpacity>
           </View>
 
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.doctorsScroll}
-          >
-            {doctors.map(doctor => (
-              <DoctorCard key={doctor.id} doctor={doctor} />
-            ))}
-          </ScrollView>
+          {isLoadingDoctors ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#007AFF" />
+              <Text style={styles.loadingText}>Đang tải bác sĩ...</Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.doctorsScroll}
+            >
+              {doctors.map(doctor => (
+                <DoctorCard key={doctor.id} doctor={{
+                  id: doctor.id,
+                  name: `${doctor.user.firstName} ${doctor.user.lastName}`,
+                  image: doctor.user.avatar ? { uri: doctor.user.avatar } : require('../../assets/behnazsabaa_Portrait_of_Smiling_Medical_Doctor__Style_of_Her_Fi_023af117-7d28-4eff-9146-da3d323b964a.jpg'),
+                  address: doctor.clinicDoctors[0]?.clinic?.address || 'Địa chỉ không có sẵn',
+                  rating: doctor.averageRating || 0,
+                  reviews: doctor.totalReviews || 0,
+                  distance: '1.2 km', // TODO: Calculate real distance
+                  type: doctor.specialty.name
+                }} />
+              ))}
+            </ScrollView>
+          )}
         </View>
       </ScrollView>
 
@@ -763,5 +861,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '500',
+  },
+
+  // Loading states
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontFamily: 'Inter',
   },
 });

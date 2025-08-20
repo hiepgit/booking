@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ReactElement } from 'react';
 import {
   View,
@@ -9,9 +9,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Dimensions
+  Dimensions,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { getDoctorById, Doctor } from '../services/doctors.service';
+import { getDoctorReviews, Review } from '../services/reviews.service';
 
 const { width } = Dimensions.get('window');
 
@@ -21,35 +25,9 @@ type DoctorDetailsScreenProps = {
   doctorId?: string;
 };
 
-type DoctorStats = {
-  patients: string;
-  experience: string;
-  rating: string;
-  reviews: string;
-};
+// Using Doctor and Review types from services
 
-type Review = {
-  id: string;
-  name: string;
-  rating: number;
-  message: string;
-  avatar: any;
-};
-
-const doctorStats: DoctorStats = {
-  patients: '2,000+',
-  experience: '10+',
-  rating: '5.0',
-  reviews: '1,872'
-};
-
-const review: Review = {
-  id: '1',
-  name: 'Emily Anderson',
-  rating: 5.0,
-  message: 'Dr. David Patel is an exceptional cardiologist. His expertise and caring approach made me feel confident throughout my treatment. Highly recommended!',
-  avatar: require('../../assets/behnazsabaa_Smiling_Medical_Doctor__Style_of_Her_Film_with_Soft_7a04bd15-0067-406d-87f7-c3f253dbefb9.jpg')
-};
+// Mock data removed - using real API data
 
 function isFunction(fn: unknown): fn is Function {
   return typeof fn === 'function';
@@ -58,6 +36,68 @@ function isFunction(fn: unknown): fn is Function {
 export default function DoctorDetailsScreen({ onBack, onBookAppointment, doctorId }: DoctorDetailsScreenProps): ReactElement {
   const [isLiked, setIsLiked] = useState(false);
   const [showFullAbout, setShowFullAbout] = useState(false);
+
+  // Real data states
+  const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoadingDoctor, setIsLoadingDoctor] = useState<boolean>(true);
+  const [isLoadingReviews, setIsLoadingReviews] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch data when component mounts or doctorId changes
+  useEffect(() => {
+    if (doctorId) {
+      fetchDoctorDetails();
+      fetchDoctorReviews();
+    }
+  }, [doctorId]);
+
+  const fetchDoctorDetails = async (): Promise<void> => {
+    if (!doctorId) return;
+
+    try {
+      setIsLoadingDoctor(true);
+      setError(null);
+
+      const result = await getDoctorById(doctorId);
+
+      if (result.success && result.data) {
+        setDoctor(result.data);
+        console.log('✅ DoctorDetailsScreen: Doctor details loaded successfully');
+      } else {
+        console.log('❌ DoctorDetailsScreen: Failed to load doctor details:', result.error);
+        setError(result.error?.message || 'Failed to load doctor details');
+      }
+    } catch (error: any) {
+      console.error('❌ DoctorDetailsScreen: Unexpected error loading doctor details:', error);
+      setError('Unexpected error loading doctor details');
+    } finally {
+      setIsLoadingDoctor(false);
+    }
+  };
+
+  const fetchDoctorReviews = async (): Promise<void> => {
+    if (!doctorId) return;
+
+    try {
+      setIsLoadingReviews(true);
+
+      const result = await getDoctorReviews(doctorId, { limit: 10 });
+
+      if (result.success && result.data) {
+        setReviews(result.data.data);
+        console.log('✅ DoctorDetailsScreen: Doctor reviews loaded successfully');
+      } else {
+        console.log('❌ DoctorDetailsScreen: Failed to load doctor reviews:', result.error);
+        // Don't set error for reviews failure, just log it
+      }
+    } catch (error: any) {
+      console.error('❌ DoctorDetailsScreen: Unexpected error loading doctor reviews:', error);
+      // Don't set error for reviews failure, just log it
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
 
   const handleBack = (): void => {
     if (isFunction(onBack)) {
@@ -101,10 +141,50 @@ export default function DoctorDetailsScreen({ onBack, onBookAppointment, doctorI
     </View>
   );
 
+  // Show loading screen while fetching doctor details
+  if (isLoadingDoctor) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Đang tải thông tin bác sĩ...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error screen if failed to load doctor
+  if (error || !doctor) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error-outline" size={48} color="#EF4444" />
+          <Text style={styles.errorText}>
+            {error || 'Không tìm thấy thông tin bác sĩ'}
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={fetchDoctorDetails}
+          >
+            <Text style={styles.retryText}>Thử lại</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButtonError}
+            onPress={handleBack}
+          >
+            <Text style={styles.backButtonText}>Quay lại</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
+
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Card & Title Section */}
@@ -126,17 +206,25 @@ export default function DoctorDetailsScreen({ onBack, onBookAppointment, doctorI
 
           {/* Doctor Card */}
           <View style={styles.doctorCard}>
-            <Image 
-              source={require('../../assets/behnazsabaa_Portrait_of_Smiling_male_Medical_Doctor__Style_of_H_22f8a7ff-a589-4d1b-880a-172332b8a241.jpg')}
+            <Image
+              source={
+                doctor.user.avatar
+                  ? { uri: doctor.user.avatar }
+                  : require('../../assets/behnazsabaa_Portrait_of_Smiling_male_Medical_Doctor__Style_of_H_22f8a7ff-a589-4d1b-880a-172332b8a241.jpg')
+              }
               style={styles.doctorImage}
             />
             <View style={styles.doctorInfo}>
-              <Text style={styles.doctorName}>Dr. David Patel</Text>
+              <Text style={styles.doctorName}>
+                Dr. {doctor.user.firstName} {doctor.user.lastName}
+              </Text>
               <View style={styles.separator} />
-              <Text style={styles.doctorSpecialty}>Cardiologist</Text>
+              <Text style={styles.doctorSpecialty}>{doctor.specialty.name}</Text>
               <View style={styles.locationContainer}>
                 <MaterialIcons name="location-on" size={14} color="#4B5563" />
-                <Text style={styles.locationText}>Golden Cardiology Center</Text>
+                <Text style={styles.locationText}>
+                  {doctor.clinicDoctors[0]?.clinic?.address || 'Địa chỉ không có sẵn'}
+                </Text>
               </View>
             </View>
           </View>
@@ -144,63 +232,103 @@ export default function DoctorDetailsScreen({ onBack, onBookAppointment, doctorI
 
         {/* Stats Tab Bar */}
         <View style={styles.statsTabBar}>
-          {renderStatTab('people', doctorStats.patients, 'patients')}
-          {renderStatTab('military-tech', doctorStats.experience, 'experience')}
+          {renderStatTab('people', '1,000+', 'patients')}
+          {renderStatTab('military-tech', `${doctor.experience}+`, 'experience')}
           <View style={styles.statTab}>
             <View style={styles.statIcon}>
-              {renderStars(5)}
+              {renderStars(Math.floor(doctor.averageRating || 0))}
             </View>
-            <Text style={styles.statValue}>{doctorStats.rating}</Text>
+            <Text style={styles.statValue}>{(doctor.averageRating || 0).toFixed(1)}</Text>
             <Text style={styles.statLabel}>rating</Text>
           </View>
-          {renderStatTab('chat', doctorStats.reviews, 'reviews')}
+          {renderStatTab('chat', `${doctor.totalReviews || 0}`, 'reviews')}
         </View>
 
         {/* About Me */}
         <View style={styles.aboutSection}>
           <Text style={styles.sectionTitle}>Về tôi</Text>
           <Text style={styles.aboutText} numberOfLines={showFullAbout ? undefined : 3}>
-            Dr. David Patel, một bác sĩ tim mạch tận tâm, mang đến sự giàu có về kinh nghiệm cho Trung tâm Tim mạch Golden Gate tại Golden Gate, CA. Với hơn 10 năm kinh nghiệm trong lĩnh vực tim mạch, bác sĩ Patel đã điều trị thành công hàng nghìn bệnh nhân với các vấn đề tim mạch phức tạp. Ông chuyên về các bệnh tim mạch như bệnh mạch vành, suy tim, rối loạn nhịp tim và các vấn đề tim mạch khác.
+            {doctor.biography || `Dr. ${doctor.user.firstName} ${doctor.user.lastName} là một bác sĩ ${doctor.specialty.name} có kinh nghiệm ${doctor.experience} năm trong lĩnh vực y tế. Bác sĩ cam kết mang đến dịch vụ chăm sóc sức khỏe tốt nhất cho bệnh nhân.`}
           </Text>
-          <TouchableOpacity style={styles.readMoreButton} onPress={handleReadMore}>
-            <Text style={styles.readMoreText}>
-              {showFullAbout ? 'Thu gọn' : 'Xem thêm'}
-            </Text>
-          </TouchableOpacity>
+          {(doctor.biography && doctor.biography.length > 150) && (
+            <TouchableOpacity style={styles.readMoreButton} onPress={handleReadMore}>
+              <Text style={styles.readMoreText}>
+                {showFullAbout ? 'Thu gọn' : 'Xem thêm'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Working Hours */}
         <View style={styles.workingHoursSection}>
           <Text style={styles.sectionTitle}>Giờ làm việc</Text>
           <Text style={styles.workingHoursText}>
-            Thứ 2 - Thứ 6, 08:00 AM - 18:00 PM
+            {doctor.clinicDoctors[0] ? (
+              `${doctor.clinicDoctors[0].workingDays.join(', ')}, ${doctor.clinicDoctors[0].startTime} - ${doctor.clinicDoctors[0].endTime}`
+            ) : (
+              'Thông tin giờ làm việc chưa có sẵn'
+            )}
           </Text>
         </View>
 
         {/* Reviews */}
         <View style={styles.reviewsSection}>
           <View style={styles.reviewsHeader}>
-            <Text style={styles.sectionTitle}>Đánh giá</Text>
+            <Text style={styles.sectionTitle}>
+              Đánh giá {!isLoadingReviews && `(${reviews.length})`}
+            </Text>
             <TouchableOpacity>
               <Text style={styles.seeAllText}>Xem tất cả</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.reviewCard}>
-            <View style={styles.reviewHeader}>
-              <Image source={review.avatar} style={styles.reviewerAvatar} />
-              <View style={styles.reviewerInfo}>
-                <Text style={styles.reviewerName}>{review.name}</Text>
-                <View style={styles.reviewRating}>
-                  <Text style={styles.ratingText}>{review.rating}</Text>
-                  <View style={styles.reviewStars}>
-                    {renderStars(review.rating)}
-                  </View>
-                </View>
-              </View>
+          {/* Reviews Loading */}
+          {isLoadingReviews && (
+            <View style={styles.reviewsLoading}>
+              <ActivityIndicator size="small" color="#007AFF" />
+              <Text style={styles.loadingText}>Đang tải đánh giá...</Text>
             </View>
-            <Text style={styles.reviewMessage}>{review.message}</Text>
-          </View>
+          )}
+
+          {/* Reviews List */}
+          {!isLoadingReviews && reviews.length > 0 && (
+            <>
+              {reviews.slice(0, 3).map((reviewItem) => (
+                <View key={reviewItem.id} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    <Image
+                      source={
+                        reviewItem.patient.avatar
+                          ? { uri: reviewItem.patient.avatar }
+                          : require('../../assets/behnazsabaa_Portrait_of_Smiling_Medical_Doctor__Style_of_Her_Fi_023af117-7d28-4eff-9146-da3d323b964a.jpg')
+                      }
+                      style={styles.reviewerAvatar}
+                    />
+                    <View style={styles.reviewerInfo}>
+                      <Text style={styles.reviewerName}>
+                        {reviewItem.patient.firstName} {reviewItem.patient.lastName}
+                      </Text>
+                      <View style={styles.reviewRating}>
+                        <Text style={styles.ratingText}>{reviewItem.rating}</Text>
+                        <View style={styles.reviewStars}>
+                          {renderStars(reviewItem.rating)}
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={styles.reviewMessage}>{reviewItem.comment}</Text>
+                </View>
+              ))}
+            </>
+          )}
+
+          {/* No Reviews */}
+          {!isLoadingReviews && reviews.length === 0 && (
+            <View style={styles.noReviewsContainer}>
+              <MaterialIcons name="rate-review" size={48} color="#9CA3AF" />
+              <Text style={styles.noReviewsText}>Chưa có đánh giá nào</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -444,5 +572,72 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#FFFFFF',
+  },
+
+  // Loading, Error, Empty States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontFamily: 'Inter',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontFamily: 'Inter',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  backButtonError: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  reviewsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  noReviewsContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 16,
+  },
+  noReviewsText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontFamily: 'Inter',
   },
 });
