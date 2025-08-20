@@ -17,34 +17,15 @@ export class InitializationService {
       return;
     }
 
-    console.log('🚀 Initializing Real-time Notification System...');
-
     try {
-      // 1. Initialize WebSocket server
-      console.log('📡 Setting up WebSocket server...');
-      const socketServer = initializeSocketServer(httpServer);
-
-      // 2. Initialize email templates
-      console.log('📧 Setting up email templates...');
+      // Initialize core services silently
+      initializeSocketServer(httpServer);
       await EmailTemplateService.initializeDefaultTemplates();
-
-      // 3. Initialize reminder service with cron jobs
-      console.log('⏰ Setting up reminder service...');
       ReminderService.initialize();
-
-      // 4. Setup appointment status change hooks
-      console.log('🔗 Setting up appointment hooks...');
       await this.setupAppointmentHooks();
-
-      // 5. Send welcome notifications to new users
-      console.log('👋 Setting up user welcome system...');
       await this.setupUserWelcomeSystem();
 
       this.isInitialized = true;
-      console.log('✅ Real-time Notification System initialized successfully!');
-
-      // Log system status
-      this.logSystemStatus();
 
     } catch (error) {
       console.error('❌ Failed to initialize notification system:', error);
@@ -59,10 +40,7 @@ export class InitializationService {
     // This would typically be done through database triggers or event listeners
     // For now, we'll document the integration points that need to be added to appointment service
 
-    console.log('📋 Appointment hooks setup completed');
-    console.log('   - Add RealtimeNotificationService.handleAppointmentStatusChange() to appointment update logic');
-    console.log('   - Add ReminderService.scheduleAppointmentReminders() to appointment confirmation logic');
-    console.log('   - Add ReminderService.cancelAppointmentReminders() to appointment cancellation logic');
+    // Appointment hooks setup completed silently
   }
 
   /**
@@ -70,60 +48,17 @@ export class InitializationService {
    */
   private static async setupUserWelcomeSystem() {
     // This would typically be integrated into the user registration process
-    console.log('👋 User welcome system setup completed');
-    console.log('   - Add welcome notification to user registration process');
-    console.log('   - Add verification reminder scheduling for unverified users');
+    // User welcome system setup completed silently
   }
 
-  /**
-   * Log system status and statistics
-   */
-  private static logSystemStatus() {
-    console.log('\n📊 Notification System Status:');
-    console.log('   ✅ WebSocket Server: Active');
-    console.log('   ✅ Email Templates: Loaded');
-    console.log('   ✅ Reminder Service: Active');
-    console.log('   ✅ Real-time Notifications: Active');
-    console.log('   ✅ Multi-channel Delivery: Ready');
-    console.log('\n🔧 Available Features:');
-    console.log('   • Appointment reminders (24h, 1h, 15m)');
-    console.log('   • Real-time status notifications');
-    console.log('   • Email notifications with templates');
-    console.log('   • In-app notifications via WebSocket');
-    console.log('   • User notification preferences');
-    console.log('   • Admin notification management');
-    console.log('   • Notification analytics and statistics');
-    console.log('\n📡 WebSocket Events:');
-    console.log('   • notification:new - New notification received');
-    console.log('   • notification:read - Mark notification as read');
-    console.log('   • appointment:updated - Appointment status changed');
-    console.log('   • doctor:status:changed - Doctor availability changed');
-    console.log('   • system:notification - System-wide announcements');
-    console.log('\n🌐 API Endpoints:');
-    console.log('   • GET /notifications - Get user notifications');
-    console.log('   • GET /notifications/unread-count - Get unread count');
-    console.log('   • GET /notifications/preferences - Get preferences');
-    console.log('   • PUT /notifications/preferences - Update preferences');
-    console.log('   • POST /notifications/mark-all-read - Mark all as read');
-    console.log('   • PATCH /notifications/:id/read - Mark as read');
-    console.log('   • DELETE /notifications/:id - Delete notification');
-    console.log('   • POST /notifications/admin/create - Create notification (Admin)');
-    console.log('   • GET /notifications/admin/statistics - Get statistics (Admin)');
-    console.log('   • GET /notifications/admin/templates - Get templates (Admin)');
-    console.log('\n🎯 Integration Points:');
-    console.log('   • Appointment Service: Status change notifications');
-    console.log('   • Payment Service: Payment status notifications');
-    console.log('   • User Service: Welcome and verification notifications');
-    console.log('   • Doctor Service: Availability change notifications');
-    console.log('   • System Service: Maintenance and update notifications');
-  }
+  // Removed verbose logging method
 
   /**
    * Create sample notifications for testing
    */
   static async createSampleNotifications(userId: string) {
     try {
-      console.log(`🧪 Creating sample notifications for user ${userId}...`);
+      // Creating sample notifications silently
 
       const sampleNotifications = [
         {
@@ -176,7 +111,7 @@ export class InitializationService {
    */
   static async testNotificationDelivery(userId: string) {
     try {
-      console.log(`🧪 Testing notification delivery for user ${userId}...`);
+      // Testing notification delivery silently
 
       const testNotification = await NotificationService.createNotification({
         userId,
@@ -187,7 +122,6 @@ export class InitializationService {
           isTest: true,
           timestamp: new Date().toISOString()
         },
-        channels: ['IN_APP', 'EMAIL'],
         priority: 'NORMAL'
       });
 
