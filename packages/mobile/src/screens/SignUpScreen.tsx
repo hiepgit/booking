@@ -10,10 +10,12 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView
+  SafeAreaView,
+  Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { HealthPalLogo, EmailIcon, LockIcon, GoogleIcon, FacebookIcon, UserIcon } from '../components';
+import { registerWithEmail } from '../services/auth.service';
 
 type SignUpScreenProps = {
   onSignUp?: (name: string, email: string) => void;
@@ -47,6 +49,7 @@ export default function SignUpScreen({
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleNameChange = (text: string): void => {
     if (isString(text)) {
@@ -66,9 +69,63 @@ export default function SignUpScreen({
     }
   };
 
-  const handleSignUp = (): void => {
-    if (isFunctionWithUserData(onSignUp)) {
-      onSignUp(name, email);
+  const handleSignUp = async (): Promise<void> => {
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await registerWithEmail(name.trim(), email.trim(), password, 'PATIENT');
+
+      if (result.success) {
+        console.log('✅ Registration successful:', result.data);
+        Alert.alert(
+          'Đăng ký thành công!',
+          'Chúng tôi đã gửi mã xác thực đến email của bạn. Vui lòng kiểm tra email để xác thực tài khoản.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                if (isFunctionWithUserData(onSignUp)) {
+                  onSignUp(name.trim(), email.trim());
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        console.log('❌ Registration failed:', result.error);
+        let errorMessage = 'Đăng ký thất bại';
+
+        if (result.error?.code === 'VALIDATION_ERROR') {
+          errorMessage = 'Thông tin đăng ký không hợp lệ';
+          if (result.error.details) {
+            // Hiển thị chi tiết lỗi validation
+            const details = result.error.details;
+            if (Array.isArray(details) && details.length > 0) {
+              errorMessage = details.map((d: any) => d.message).join('\n');
+            }
+          }
+        } else if (result.error?.message?.includes('Email already exists')) {
+          errorMessage = 'Email này đã được sử dụng. Vui lòng sử dụng email khác hoặc đăng nhập.';
+        } else if (result.error?.message?.includes('Password does not meet requirements')) {
+          errorMessage = 'Mật khẩu không đủ mạnh. Vui lòng sử dụng mật khẩu có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số.';
+        } else if (result.error?.code === 'NETWORK_ERROR') {
+          errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.';
+        } else if (result.error?.message) {
+          errorMessage = result.error.message;
+        }
+
+        Alert.alert('Lỗi đăng ký', errorMessage);
+      }
+    } catch (error: any) {
+      console.error('❌ Unexpected registration error:', error);
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -202,12 +259,20 @@ export default function SignUpScreen({
 
             {/* Sign Up Button */}
             <TouchableOpacity
-              style={styles.signUpButton}
+              style={[styles.signUpButton, isLoading && styles.signUpButtonDisabled]}
               onPress={handleSignUp}
+              disabled={isLoading}
               accessible
               accessibilityLabel="Tạo tài khoản miễn phí"
             >
-              <Text style={styles.signUpButtonText}>Tạo tài khoản miễn phí</Text>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <MaterialIcons name="hourglass-empty" size={20} color="#FFFFFF" />
+                  <Text style={styles.signUpButtonText}>Đang tạo tài khoản...</Text>
+                </View>
+              ) : (
+                <Text style={styles.signUpButtonText}>Tạo tài khoản miễn phí</Text>
+              )}
             </TouchableOpacity>
 
             {/* Separator */}
@@ -453,5 +518,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: '#1C64F2',
+  },
+  signUpButtonDisabled: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
 });

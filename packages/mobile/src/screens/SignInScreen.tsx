@@ -15,7 +15,9 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { HealthPalLogo, EmailIcon, LockIcon, GoogleIcon, FacebookIcon } from '../components';
-import { signInWithGoogle, signInWithFacebook } from '../services/socialAuth.service';
+import { mockGoogleSignIn, mockFacebookSignIn } from '../services/socialAuthWebView.service';
+import { loginWithEmail } from '../services/auth.service';
+import { useAuth } from '../contexts/AuthContext';
 
 type SignInScreenProps = {
   onSignIn?: () => void;
@@ -43,9 +45,11 @@ export default function SignInScreen({
   onForgotPassword,
   onBack
 }: SignInScreenProps): ReactElement {
+  const { login } = useAuth();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleEmailChange = (text: string): void => {
     if (isString(text)) {
@@ -59,9 +63,58 @@ export default function SignInScreen({
     }
   };
 
-  const handleSignIn = (): void => {
-    if (isFunction(onSignIn)) {
-      onSignIn();
+  const handleSignIn = async (): Promise<void> => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ email và mật khẩu');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await loginWithEmail(email.trim(), password);
+
+      if (result.success) {
+        console.log('✅ Login successful:', result.data?.user);
+
+        // Update AuthContext with user data
+        if (result.data?.user) {
+          login(result.data.user);
+        }
+
+        Alert.alert('Thành công', 'Đăng nhập thành công!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (isFunction(onSignIn)) {
+                onSignIn();
+              }
+            }
+          }
+        ]);
+      } else {
+        console.log('❌ Login failed:', result.error);
+        let errorMessage = 'Đăng nhập thất bại';
+
+        if (result.error?.code === 'VALIDATION_ERROR') {
+          errorMessage = 'Thông tin đăng nhập không hợp lệ';
+        } else if (result.error?.message?.includes('Invalid credentials')) {
+          errorMessage = 'Email hoặc mật khẩu không đúng';
+        } else if (result.error?.message?.includes('Account not verified')) {
+          errorMessage = 'Tài khoản chưa được xác thực. Vui lòng kiểm tra email để xác thực tài khoản.';
+        } else if (result.error?.code === 'NETWORK_ERROR') {
+          errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.';
+        } else if (result.error?.message) {
+          errorMessage = result.error.message;
+        }
+
+        Alert.alert('Lỗi đăng nhập', errorMessage);
+      }
+    } catch (error: any) {
+      console.error('❌ Unexpected login error:', error);
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -71,15 +124,77 @@ export default function SignInScreen({
     }
   };
 
-  const handleGoogleSignIn = (): void => {
-    if (isFunction(onGoogleSignIn)) {
-      onGoogleSignIn();
+  const handleGoogleSignIn = async (): Promise<void> => {
+    setIsLoading(true);
+
+    try {
+      console.log('🔍 Starting Google sign in');
+      const result = await mockGoogleSignIn();
+
+      if (result.success) {
+        console.log('✅ Google sign in successful:', result.user);
+
+        // Update AuthContext with user data
+        if (result.user) {
+          login(result.user);
+        }
+
+        Alert.alert('Thành công', 'Đăng nhập Google thành công!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (isFunction(onGoogleSignIn)) {
+                onGoogleSignIn();
+              }
+            }
+          }
+        ]);
+      } else {
+        console.log('❌ Google sign in failed:', result.error);
+        Alert.alert('Lỗi đăng nhập Google', result.error || 'Đăng nhập Google thất bại');
+      }
+    } catch (error: any) {
+      console.error('❌ Unexpected Google sign in error:', error);
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleFacebookSignIn = (): void => {
-    if (isFunction(onFacebookSignIn)) {
-      onFacebookSignIn();
+  const handleFacebookSignIn = async (): Promise<void> => {
+    setIsLoading(true);
+
+    try {
+      console.log('📘 Starting Facebook sign in');
+      const result = await mockFacebookSignIn();
+
+      if (result.success) {
+        console.log('✅ Facebook sign in successful:', result.user);
+
+        // Update AuthContext with user data
+        if (result.user) {
+          login(result.user);
+        }
+
+        Alert.alert('Thành công', 'Đăng nhập Facebook thành công!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (isFunction(onFacebookSignIn)) {
+                onFacebookSignIn();
+              }
+            }
+          }
+        ]);
+      } else {
+        console.log('❌ Facebook sign in failed:', result.error);
+        Alert.alert('Lỗi đăng nhập Facebook', result.error || 'Đăng nhập Facebook thất bại');
+      }
+    } catch (error: any) {
+      console.error('❌ Unexpected Facebook sign in error:', error);
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -185,12 +300,20 @@ export default function SignInScreen({
 
             {/* Sign In Button */}
             <TouchableOpacity
-              style={styles.signInButton}
+              style={[styles.signInButton, isLoading && styles.signInButtonDisabled]}
               onPress={handleSignIn}
+              disabled={isLoading}
               accessible
               accessibilityLabel="Đăng nhập"
             >
-              <Text style={styles.signInButtonText}>Đăng nhập</Text>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <MaterialIcons name="hourglass-empty" size={20} color="#FFFFFF" />
+                  <Text style={styles.signInButtonText}>Đang đăng nhập...</Text>
+                </View>
+              ) : (
+                <Text style={styles.signInButtonText}>Đăng nhập</Text>
+              )}
             </TouchableOpacity>
 
             {/* Separator */}
@@ -487,5 +610,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: '#FFFFFF',
+  },
+  signInButtonDisabled: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
 });

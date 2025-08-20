@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { HealthPalLogo } from '../components';
+import { verifyOtp, resendOtp } from '../services/auth.service';
 
 type VerifyEmailScreenProps = {
     onVerifySuccess?: () => void;
@@ -79,34 +80,109 @@ export default function VerifyEmailScreen({
             return;
         }
 
+        if (!email) {
+            Alert.alert('Lỗi', 'Email không hợp lệ');
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            console.log('🔢 Verifying OTP for email:', email);
+            const result = await verifyOtp(email, verificationCode);
 
-            console.log('Verification code:', verificationCode);
+            if (result.success) {
+                console.log('✅ OTP verification successful:', result.data);
+                Alert.alert(
+                    'Xác thực thành công!',
+                    'Tài khoản của bạn đã được xác thực thành công.',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => {
+                                if (isFunction(onVerifySuccess)) {
+                                    onVerifySuccess();
+                                }
+                            }
+                        }
+                    ]
+                );
+            } else {
+                console.log('❌ OTP verification failed:', result.error);
+                let errorMessage = 'Mã xác thực không đúng. Vui lòng thử lại.';
 
-            if (isFunction(onVerifySuccess)) {
-                onVerifySuccess();
+                if (result.error?.message?.includes('Invalid OTP')) {
+                    errorMessage = 'Mã xác thực không đúng. Vui lòng kiểm tra lại.';
+                } else if (result.error?.message?.includes('OTP expired')) {
+                    errorMessage = 'Mã xác thực đã hết hạn. Vui lòng yêu cầu mã mới.';
+                } else if (result.error?.message?.includes('User not found')) {
+                    errorMessage = 'Không tìm thấy tài khoản. Vui lòng đăng ký lại.';
+                } else if (result.error?.code === 'NETWORK_ERROR') {
+                    errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.';
+                } else if (result.error?.message) {
+                    errorMessage = result.error.message;
+                }
+
+                Alert.alert('Lỗi xác thực', errorMessage);
             }
-        } catch (error) {
-            Alert.alert('Lỗi', 'Mã xác thực không đúng. Vui lòng thử lại.');
+        } catch (error: any) {
+            console.error('❌ Unexpected OTP verification error:', error);
+            Alert.alert('Lỗi', 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleResendCode = (): void => {
-        if (isFunction(onResendCode)) {
-            onResendCode();
+    const handleResendCode = async (): Promise<void> => {
+        if (!email) {
+            Alert.alert('Lỗi', 'Email không hợp lệ');
+            return;
         }
 
-        // Reset code inputs
-        setCode(['', '', '', '', '']);
-        inputRefs.current[0]?.focus();
+        setIsLoading(true);
 
-        Alert.alert('Thành công', 'Mã xác thực mới đã được gửi đến email của bạn');
+        try {
+            console.log('📧 Resending OTP for email:', email);
+            const result = await resendOtp(email);
+
+            if (result.success) {
+                console.log('✅ OTP resent successfully:', result.data);
+
+                // Reset code inputs
+                setCode(['', '', '', '', '']);
+                inputRefs.current[0]?.focus();
+
+                Alert.alert(
+                    'Thành công',
+                    'Mã xác thực mới đã được gửi đến email của bạn. Vui lòng kiểm tra email.'
+                );
+
+                // Call parent callback if provided
+                if (isFunction(onResendCode)) {
+                    onResendCode();
+                }
+            } else {
+                console.log('❌ Resend OTP failed:', result.error);
+                let errorMessage = 'Không thể gửi lại mã xác thực. Vui lòng thử lại.';
+
+                if (result.error?.message?.includes('User not found')) {
+                    errorMessage = 'Không tìm thấy tài khoản. Vui lòng đăng ký lại.';
+                } else if (result.error?.message?.includes('Too many requests')) {
+                    errorMessage = 'Bạn đã yêu cầu quá nhiều lần. Vui lòng đợi một chút.';
+                } else if (result.error?.code === 'NETWORK_ERROR') {
+                    errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.';
+                } else if (result.error?.message) {
+                    errorMessage = result.error.message;
+                }
+
+                Alert.alert('Lỗi', errorMessage);
+            }
+        } catch (error: any) {
+            console.error('❌ Unexpected resend OTP error:', error);
+            Alert.alert('Lỗi', 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleBack = (): void => {
