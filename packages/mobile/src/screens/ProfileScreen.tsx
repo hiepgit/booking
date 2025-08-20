@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ReactElement } from 'react';
 import {
   View,
@@ -11,8 +11,12 @@ import {
   Dimensions,
   Image,
   Modal,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { getUserProfile, UserProfile } from '../services/me.service';
+import { useAuth } from '../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -26,6 +30,8 @@ type ProfileScreenProps = {
   onNavigateSettings?: () => void;
   onNavigateHelp?: () => void;
   onNavigateTerms?: () => void;
+  onNavigateChangePassword?: () => void;
+  onNavigatePaymentHistory?: () => void;
   onLogout?: () => void;
 };
 
@@ -42,20 +48,64 @@ export default function ProfileScreen({
   onNavigateLocation,
   onNavigateAppointments,
   onNavigateEditProfile,
-  onNavigateFavorites,
   onNavigateNotifications,
   onNavigateSettings,
   onNavigateHelp,
   onNavigateTerms,
   onLogout,
 }: ProfileScreenProps): ReactElement {
-  const [userProfile] = useState({
-    name: 'Daniel Martinez',
-    phone: '+123 856479683',
-    avatar: 'https://example.com/avatar.jpg',
-  });
-
+  const { user: authUser, logout: authLogout } = useAuth();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(authUser);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Fetch user profile when component mounts
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const result = await getUserProfile();
+
+      if (result.success && result.data) {
+        setUserProfile(result.data);
+        console.log('✅ ProfileScreen: User profile loaded successfully');
+      } else {
+        console.log('❌ ProfileScreen: Failed to load user profile:', result.error);
+        setError(result.error?.message || 'Failed to load user profile');
+        // Fallback to auth user if available
+        if (authUser) {
+          setUserProfile(authUser);
+        }
+      }
+    } catch (error: any) {
+      console.error('❌ ProfileScreen: Unexpected error loading user profile:', error);
+      setError('Unexpected error loading user profile');
+      // Fallback to auth user if available
+      if (authUser) {
+        setUserProfile(authUser);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAuthLogout = async (): Promise<void> => {
+    try {
+      await authLogout();
+      if (onLogout) {
+        onLogout();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Lỗi', 'Không thể đăng xuất. Vui lòng thử lại.');
+    }
+  };
 
   const menuItems: MenuItem[] = [
     {
@@ -63,13 +113,6 @@ export default function ProfileScreen({
       icon: 'edit',
       title: 'Chỉnh sửa hồ sơ',
       onPress: onNavigateEditProfile || (() => console.log('Navigate to edit profile')),
-      showSeparator: true,
-    },
-    {
-      id: 'favorites',
-      icon: 'favorite',
-      title: 'Yêu thích',
-      onPress: onNavigateFavorites || (() => console.log('Navigate to favorites')),
       showSeparator: true,
     },
     {
@@ -109,11 +152,9 @@ export default function ProfileScreen({
     },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setShowLogoutModal(false);
-    if (onLogout) {
-      onLogout();
-    }
+    await handleAuthLogout();
   };
 
   const handleCancelLogout = () => {
@@ -166,13 +207,34 @@ export default function ProfileScreen({
         {/* Title */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>Hồ sơ</Text>
+          {isLoading && (
+            <ActivityIndicator size="small" color="#007AFF" style={{ marginLeft: 10 }} />
+          )}
         </View>
+
+        {/* Error Message */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={fetchUserProfile} style={styles.retryButton}>
+              <Text style={styles.retryText}>Thử lại</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Profile Picture & Info */}
         <View style={styles.profileSection}>
           <View style={styles.profilePictureContainer}>
             <View style={styles.profilePicture}>
-              <MaterialIcons name="person" size={80} color="#9CA3AF" />
+              {userProfile?.avatar ? (
+                <Image
+                  source={{ uri: userProfile.avatar }}
+                  style={styles.avatarImage}
+                  onError={() => console.log('Failed to load avatar')}
+                />
+              ) : (
+                <MaterialIcons name="person" size={80} color="#9CA3AF" />
+              )}
             </View>
             <TouchableOpacity style={styles.editButton}>
               <MaterialIcons name="edit" size={20} color="#FFFFFF" />
@@ -180,8 +242,12 @@ export default function ProfileScreen({
           </View>
           
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{userProfile.name}</Text>
-            <Text style={styles.profilePhone}>{userProfile.phone}</Text>
+            <Text style={styles.profileName}>
+              {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Đang tải...'}
+            </Text>
+            <Text style={styles.profilePhone}>
+              {userProfile?.phone || userProfile?.email || 'Chưa có thông tin'}
+            </Text>
           </View>
         </View>
 
@@ -247,13 +313,41 @@ const styles = StyleSheet.create({
   titleSection: {
     paddingHorizontal: 24,
     paddingVertical: 24,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 20,
     fontWeight: '600',
     color: '#374151',
     fontFamily: 'Inter',
+  },
+  errorContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  retryButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: '#DC2626',
+    borderRadius: 6,
+  },
+  retryText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   profileSection: {
     paddingHorizontal: 24,
@@ -273,6 +367,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 4,
     borderColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 202,
+    height: 202,
+    borderRadius: 101,
   },
   editButton: {
     position: 'absolute',
