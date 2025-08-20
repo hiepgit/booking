@@ -2633,6 +2633,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@react-native-async-storage/async-storage@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "@react-native-async-storage/async-storage@npm:2.2.0"
+  dependencies:
+    merge-options: "npm:^3.0.4"
+  peerDependencies:
+    react-native: ^0.0.0-0 || >=0.65 <1.0
+  checksum: 10c0/84900eba46a40225c4ac9bf5eb58885200dc1e789d873ecda46a2a213870cc7110536ed1fd7a74b873071f3603c093958fbd84c635d6f6d4f94bfbb616ffa0ef
+  languageName: node
+  linkType: hard
+
 "@react-native/assets-registry@npm:0.79.5":
   version: 0.79.5
   resolution: "@react-native/assets-registry@npm:0.79.5"
@@ -5862,6 +5873,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"engine.io-client@npm:~6.6.1":
+  version: 6.6.3
+  resolution: "engine.io-client@npm:6.6.3"
+  dependencies:
+    "@socket.io/component-emitter": "npm:~3.1.0"
+    debug: "npm:~4.3.1"
+    engine.io-parser: "npm:~5.2.1"
+    ws: "npm:~8.17.1"
+    xmlhttprequest-ssl: "npm:~2.1.1"
+  checksum: 10c0/ebe0b1da6831d5a68564f9ffb80efe682da4f0538488eaffadf0bcf5177a8b4472cdb01d18a9f20dece2f8de30e2df951eb4635bef2f1b492e9f08a523db91a0
+  languageName: node
+  linkType: hard
+
 "engine.io-parser@npm:~5.2.1":
   version: 5.2.3
   resolution: "engine.io-parser@npm:5.2.3"
@@ -6280,6 +6304,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-image-loader@npm:~5.1.0":
+  version: 5.1.0
+  resolution: "expo-image-loader@npm:5.1.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/2897a2c3623f752cc277677b170ca9b3db826439641ccc93dcc3a94ece76dcbf084ecc108eddfebb42c34bcb339ef00996726995112c99561f262696c3e23300
+  languageName: node
+  linkType: hard
+
+"expo-image-picker@npm:^16.1.4":
+  version: 16.1.4
+  resolution: "expo-image-picker@npm:16.1.4"
+  dependencies:
+    expo-image-loader: "npm:~5.1.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/7e27458a48140cea2864564db40ff102525302ca60e9526838ae265523dba8b1d9ceea3a2ac94c1eaece78f4cd1ded0f1a2391517e61a3fd8a6f17b06e337293
+  languageName: node
+  linkType: hard
+
 "expo-keep-awake@npm:~14.1.4":
   version: 14.1.4
   resolution: "expo-keep-awake@npm:14.1.4"
@@ -6311,6 +6355,15 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/4b4ec130d768beb4cecf85a33578e3eca1a69428a212ab7470ea1b1b7ff370607576832efbd7c3b5c047fb6d034a577aced42fd588cbeb46782e22ce2851542e
+  languageName: node
+  linkType: hard
+
+"expo-location@npm:^18.1.6":
+  version: 18.1.6
+  resolution: "expo-location@npm:18.1.6"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/94ae7ae5ca144f2cd327fc26f76355783e81b5454b6328a5d127511251e1b09ff04e70084f314dff825a91211338fb801434c6680af2901539ceb11c949af8d9
   languageName: node
   linkType: hard
 
@@ -7575,6 +7628,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"is-plain-obj@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "is-plain-obj@npm:2.1.0"
+  checksum: 10c0/e5c9814cdaa627a9ad0a0964ded0e0491bfd9ace405c49a5d63c88b30a162f1512c069d5b80997893c4d0181eadc3fed02b4ab4b81059aba5620bfcdfdeb9c53
+  languageName: node
+  linkType: hard
+
 "is-plain-object@npm:^2.0.4":
   version: 2.0.4
   resolution: "is-plain-object@npm:2.0.4"
@@ -8758,6 +8818,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"merge-options@npm:^3.0.4":
+  version: 3.0.4
+  resolution: "merge-options@npm:3.0.4"
+  dependencies:
+    is-plain-obj: "npm:^2.1.0"
+  checksum: 10c0/02b5891ceef09b0b497b5a0154c37a71784e68ed71b14748f6fd4258ffd3fe4ecd5cb0fd6f7cae3954fd11e7686c5cb64486daffa63c2793bbe8b614b61c7055
+  languageName: node
+  linkType: hard
+
 "merge-stream@npm:^2.0.0":
   version: 2.0.0
   resolution: "merge-stream@npm:2.0.0"
@@ -9308,13 +9377,16 @@ __metadata:
   resolution: "mobile@workspace:packages/mobile"
   dependencies:
     "@babel/core": "npm:^7.25.2"
+    "@react-native-async-storage/async-storage": "npm:^2.2.0"
     "@types/react": "npm:~19.0.10"
     axios: "npm:^1.7.7"
     babel-plugin-module-resolver: "npm:^5.0.2"
     expo: "npm:~53.0.20"
     expo-auth-session: "npm:^6.2.1"
     expo-crypto: "npm:^14.1.5"
+    expo-image-picker: "npm:^16.1.4"
     expo-linear-gradient: "npm:^14.1.5"
+    expo-location: "npm:^18.1.6"
     expo-secure-store: "npm:~14.2.3"
     expo-status-bar: "npm:~2.2.3"
     expo-web-browser: "npm:^14.2.0"
@@ -9324,6 +9396,8 @@ __metadata:
     react-native-reanimated: "npm:~3.17.4"
     react-native-svg: "npm:15.11.2"
     react-native-svg-transformer: "npm:^1.5.1"
+    react-native-url-polyfill: "npm:^2.0.0"
+    socket.io-client: "npm:^4.8.1"
     typescript: "npm:~5.8.3"
   languageName: unknown
   linkType: soft
@@ -10886,6 +10960,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-url-polyfill@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "react-native-url-polyfill@npm:2.0.0"
+  dependencies:
+    whatwg-url-without-unicode: "npm:8.0.0-3"
+  peerDependencies:
+    react-native: "*"
+  checksum: 10c0/a48e6978f5a2c9e225bb93cc5f9985a8ac0fe7d8122105bcd88ef8d8420a3b33a67ce5d2bda2b606bf5fa94af9f6d04efce354580b60900e7c967fd2ebdc42cf
+  languageName: node
+  linkType: hard
+
 "react-native@npm:0.79.5":
   version: 0.79.5
   resolution: "react-native@npm:0.79.5"
@@ -11767,6 +11852,18 @@ __metadata:
     debug: "npm:~4.3.4"
     ws: "npm:~8.17.1"
   checksum: 10c0/04a5a2a9c4399d1b6597c2afc4492ab1e73430cc124ab02b09e948eabf341180b3866e2b61b5084cb899beb68a4db7c328c29bda5efb9207671b5cb0bc6de44e
+  languageName: node
+  linkType: hard
+
+"socket.io-client@npm:^4.8.1":
+  version: 4.8.1
+  resolution: "socket.io-client@npm:4.8.1"
+  dependencies:
+    "@socket.io/component-emitter": "npm:~3.1.0"
+    debug: "npm:~4.3.2"
+    engine.io-client: "npm:~6.6.1"
+    socket.io-parser: "npm:~4.2.4"
+  checksum: 10c0/544c49cc8cc77118ef68b758a8a580c8e680a5909cae05c566d2cc07ec6cd6720a4f5b7e985489bf2a8391749177a5437ac30b8afbdf30b9da6402687ad51c86
   languageName: node
   linkType: hard
 
@@ -13398,6 +13495,13 @@ __metadata:
   version: 11.0.1
   resolution: "xmlbuilder@npm:11.0.1"
   checksum: 10c0/74b979f89a0a129926bc786b913459bdbcefa809afaa551c5ab83f89b1915bdaea14c11c759284bb9b931e3b53004dbc2181e21d3ca9553eeb0b2a7b4e40c35b
+  languageName: node
+  linkType: hard
+
+"xmlhttprequest-ssl@npm:~2.1.1":
+  version: 2.1.2
+  resolution: "xmlhttprequest-ssl@npm:2.1.2"
+  checksum: 10c0/70d60869323e823f473a238f78fd108437edbc3690ecd5859c39c83217080090a18899b272e515769c0d1f518cc64cbed6b6995b23fdd7ba13b297d530b6e631
   languageName: node
   linkType: hard
 
