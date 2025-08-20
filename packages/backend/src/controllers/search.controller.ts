@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { SearchService } from '../services/search.service.js';
+import { AnalyticsService } from '../services/analytics.service.js';
 import {
   AdvancedDoctorSearchSchema,
   AdvancedClinicSearchSchema,
@@ -215,7 +216,8 @@ export class SearchController {
         });
       }
 
-      const analytics = await SearchService.getSearchAnalytics();
+      const timeframe = (req.query.timeframe as 'hour' | 'day' | 'week') || 'day';
+      const analytics = await SearchService.getSearchAnalytics(timeframe);
       
       res.json({
         success: true,

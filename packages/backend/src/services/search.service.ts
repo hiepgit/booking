@@ -1,5 +1,7 @@
 import { prisma } from '../libs/prisma.js';
 import { Decimal } from '@prisma/client/runtime/library';
+import { CacheService } from './cache.service.js';
+import { AnalyticsService } from './analytics.service.js';
 
 export interface AdvancedDoctorSearchFilters {
   // Text search
@@ -82,7 +84,7 @@ export class SearchService {
    */
   static async searchDoctorsAdvanced(filters: AdvancedDoctorSearchFilters) {
     const startTime = Date.now();
-    
+
     const {
       q,
       symptoms,
@@ -106,6 +108,15 @@ export class SearchService {
       sortBy = 'relevance',
       sortOrder = 'desc'
     } = filters;
+
+    // Generate cache key for this search
+    const cacheKey = CacheService.generateKey('doctor:search', filters);
+
+    // Try to get from cache first (cache for 5 minutes for search results)
+    const cached = await CacheService.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
     const skip = (page - 1) * limit;
 
@@ -317,15 +328,16 @@ export class SearchService {
     const searchTime = Date.now() - startTime;
 
     // Log search analytics
-    await this.logSearchAnalytics({
+    await AnalyticsService.logSearch({
       query: q || symptoms || '',
+      searchType: 'doctors',
       filters,
       resultCount: total,
       searchTime,
       timestamp: new Date()
     });
 
-    return {
+    const result = {
       data: doctorsWithDistance,
       pagination: {
         page,
@@ -339,6 +351,11 @@ export class SearchService {
         appliedFilters: this.getAppliedFilters(filters)
       }
     };
+
+    // Cache the result for 5 minutes
+    await CacheService.set(cacheKey, result, 300);
+
+    return result;
   }
 
   /**
@@ -450,17 +467,17 @@ export class SearchService {
    */
   static async logSearchAnalytics(analytics: SearchAnalytics) {
     try {
-      // In a real application, you might want to store this in a separate analytics table
-      // or send to an analytics service like Google Analytics, Mixpanel, etc.
-      console.log('Search Analytics:', {
+      await AnalyticsService.logSearch({
         query: analytics.query,
+        searchType: 'doctors', // Default to doctors, will be updated per search type
+        filters: analytics.filters,
         resultCount: analytics.resultCount,
-        searchTime: `${analytics.searchTime}ms`,
-        timestamp: analytics.timestamp.toISOString()
+        searchTime: analytics.searchTime,
+        userId: analytics.userId,
+        userAgent: analytics.userAgent,
+        ip: analytics.ip,
+        timestamp: analytics.timestamp
       });
-
-      // For now, we'll just log to console
-      // In production, implement proper analytics storage
     } catch (error) {
       console.error('Failed to log search analytics:', error);
     }
@@ -471,6 +488,15 @@ export class SearchService {
    */
   static async searchClinicsAdvanced(filters: AdvancedClinicSearchFilters) {
     const startTime = Date.now();
+
+    // Generate cache key for this search
+    const cacheKey = CacheService.generateKey('clinic:search', filters);
+
+    // Try to get from cache first (cache for 5 minutes for search results)
+    const cached = await CacheService.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
     const {
       q,
@@ -595,7 +621,7 @@ export class SearchService {
 
     const searchTime = Date.now() - startTime;
 
-    return {
+    const result = {
       data: clinicsWithDistance,
       pagination: {
         page,
@@ -609,6 +635,21 @@ export class SearchService {
         appliedFilters: this.getAppliedClinicFilters(filters)
       }
     };
+
+    // Log search analytics
+    await AnalyticsService.logSearch({
+      query: q || '',
+      searchType: 'clinics',
+      filters,
+      resultCount: clinicsWithDistance.length,
+      searchTime,
+      timestamp: new Date()
+    });
+
+    // Cache the result for 5 minutes
+    await CacheService.set(cacheKey, result, 300);
+
+    return result;
   }
 
   /**
@@ -636,120 +677,11 @@ export class SearchService {
    * Get search suggestions for autocomplete
    */
   static async getSearchSuggestions(query: string, type: string, limit: number) {
-    const suggestions: any[] = [];
-
-    switch (type) {
-      case 'doctors':
-        const doctors = await prisma.doctor.findMany({
-          where: {
-            OR: [
-              {
-                user: {
-                  OR: [
-                    { firstName: { contains: query, mode: 'insensitive' } },
-                    { lastName: { contains: query, mode: 'insensitive' } }
-                  ]
-                }
-              },
-              { biography: { contains: query, mode: 'insensitive' } }
-            ]
-          },
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true
-              }
-            },
-            specialty: {
-              select: {
-                name: true,
-                icon: true
-              }
-            }
-          },
-          take: limit
-        });
-
-        suggestions.push(...doctors.map(doctor => ({
-          type: 'doctor',
-          id: doctor.id,
-          name: `${doctor.user.firstName} ${doctor.user.lastName}`,
-          specialty: doctor.specialty.name,
-          icon: doctor.specialty.icon
-        })));
-        break;
-
-      case 'clinics':
-        const clinics = await prisma.clinic.findMany({
-          where: {
-            OR: [
-              { name: { contains: query, mode: 'insensitive' } },
-              { address: { contains: query, mode: 'insensitive' } }
-            ]
-          },
-          select: {
-            id: true,
-            name: true,
-            address: true
-          },
-          take: limit
-        });
-
-        suggestions.push(...clinics.map(clinic => ({
-          type: 'clinic',
-          id: clinic.id,
-          name: clinic.name,
-          address: clinic.address
-        })));
-        break;
-
-      case 'specialties':
-        const specialties = await prisma.specialty.findMany({
-          where: {
-            OR: [
-              { name: { contains: query, mode: 'insensitive' } },
-              { description: { contains: query, mode: 'insensitive' } }
-            ]
-          },
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            _count: {
-              select: { doctors: true }
-            }
-          },
-          take: limit
-        });
-
-        suggestions.push(...specialties.map(specialty => ({
-          type: 'specialty',
-          id: specialty.id,
-          name: specialty.name,
-          icon: specialty.icon,
-          doctorCount: specialty._count.doctors
-        })));
-        break;
-
-      case 'symptoms':
-        // Return predefined symptom suggestions
-        const symptomSuggestions = [
-          'chest pain', 'headache', 'back pain', 'joint pain', 'skin rash',
-          'fever', 'fatigue', 'weight loss', 'memory problems', 'heart palpitations'
-        ].filter(symptom =>
-          symptom.toLowerCase().includes(query.toLowerCase())
-        ).slice(0, limit);
-
-        suggestions.push(...symptomSuggestions.map(symptom => ({
-          type: 'symptom',
-          name: symptom,
-          category: 'symptom'
-        })));
-        break;
-    }
-
-    return suggestions;
+    return await AnalyticsService.getSearchSuggestions(
+      query,
+      type as 'doctors' | 'clinics' | 'all',
+      limit
+    );
   }
 
   /**
@@ -892,125 +824,25 @@ export class SearchService {
    * Get popular searches
    */
   static async getPopularSearches(type: string, limit: number, timeframe: string) {
-    // In a real application, this would query actual search analytics data
-    // For now, return mock popular searches based on type
-
-    const popularSearches: any = {
-      doctors: [
-        { query: 'tim mạch', count: 150, trend: 'up' },
-        { query: 'thần kinh', count: 120, trend: 'stable' },
-        { query: 'nhi khoa', count: 100, trend: 'up' },
-        { query: 'da liễu', count: 85, trend: 'down' },
-        { query: 'chấn thương chỉnh hình', count: 75, trend: 'up' }
-      ],
-      clinics: [
-        { query: 'hanoi', count: 200, trend: 'up' },
-        { query: 'ho chi minh', count: 180, trend: 'stable' },
-        { query: 'emergency', count: 90, trend: 'up' },
-        { query: 'parking', count: 60, trend: 'stable' },
-        { query: 'accessible', count: 45, trend: 'up' }
-      ],
-      symptoms: [
-        { query: 'chest pain', count: 95, trend: 'up' },
-        { query: 'headache', count: 80, trend: 'stable' },
-        { query: 'back pain', count: 70, trend: 'up' },
-        { query: 'skin rash', count: 55, trend: 'down' },
-        { query: 'fever', count: 50, trend: 'stable' }
-      ]
-    };
-
-    return popularSearches[type]?.slice(0, limit) || [];
+    return await AnalyticsService.getPopularSearches(
+      type as 'doctors' | 'clinics' | 'all',
+      limit,
+      timeframe as 'hour' | 'day' | 'week'
+    );
   }
 
   /**
    * Get search analytics (admin only)
    */
-  static async getSearchAnalytics() {
-    // In a real application, this would query actual analytics data
-    // For now, return mock analytics data
-
-    return {
-      totalSearches: 1250,
-      uniqueUsers: 450,
-      averageSearchTime: 285, // milliseconds
-      topQueries: [
-        { query: 'tim mạch', count: 150, avgResultCount: 12 },
-        { query: 'thần kinh', count: 120, avgResultCount: 8 },
-        { query: 'nhi khoa', count: 100, avgResultCount: 15 }
-      ],
-      searchTrends: {
-        daily: [45, 52, 48, 61, 55, 58, 62],
-        weekly: [320, 340, 315, 380, 365, 390, 410],
-        monthly: [1200, 1350, 1250, 1400, 1320, 1450, 1380]
-      },
-      noResultsQueries: [
-        { query: 'plastic surgery', count: 25 },
-        { query: 'veterinary', count: 18 },
-        { query: 'dentist', count: 15 }
-      ],
-      performanceMetrics: {
-        averageResponseTime: 285,
-        slowQueries: [
-          { query: 'complex search with multiple filters', time: 850 },
-          { query: 'location based search', time: 720 }
-        ]
-      }
-    };
+  static async getSearchAnalytics(timeframe: 'hour' | 'day' | 'week' = 'day') {
+    return await AnalyticsService.getAnalytics(timeframe);
   }
 
   /**
    * Get suggestions for "no results" queries
    */
   static async getNoResultsSuggestions(query: string) {
-    const suggestions = [];
-
-    // Suggest similar specialties
-    const specialties = await prisma.specialty.findMany({
-      where: {
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } }
-        ]
-      },
-      select: {
-        id: true,
-        name: true,
-        icon: true,
-        _count: {
-          select: { doctors: true }
-        }
-      },
-      take: 3
-    });
-
-    suggestions.push(...specialties.map(specialty => ({
-      type: 'specialty',
-      suggestion: `Try searching for "${specialty.name}"`,
-      data: specialty
-    })));
-
-    // Suggest popular searches
-    const popularSearches = await this.getPopularSearches('doctors', 3, 'week');
-    suggestions.push(...popularSearches.map((search: any) => ({
-      type: 'popular',
-      suggestion: `Popular search: "${search.query}"`,
-      data: search
-    })));
-
-    // Suggest broader search terms
-    const broaderTerms = [
-      'Try searching by specialty instead of specific condition',
-      'Try searching by location (city or district)',
-      'Try using more general terms'
-    ];
-
-    suggestions.push(...broaderTerms.map(term => ({
-      type: 'tip',
-      suggestion: term,
-      data: null
-    })));
-
-    return suggestions.slice(0, 5);
+    return await AnalyticsService.getNoResultsSuggestions(query);
   }
 
   /**
