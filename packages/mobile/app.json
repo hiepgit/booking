@@ -29,13 +29,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      [
-        "expo-auth-session",
-        {
-          "schemes": ["healthpal"]
-        }
-      ]
-    ]
+    "plugins": []
   }
 }
