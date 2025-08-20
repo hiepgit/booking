@@ -53,6 +53,13 @@ const EnvSchema = z.object({
   
   // Health Check Configuration
   HEALTH_CHECK_INTERVAL: z.coerce.number().default(30000),
+
+  // VNPay Configuration
+  VNPAY_TMN_CODE: z.string().min(1, 'VNPAY_TMN_CODE is required'),
+  VNPAY_HASH_SECRET: z.string().min(1, 'VNPAY_HASH_SECRET is required'),
+  VNPAY_URL: z.string().url().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
+  VNPAY_RETURN_URL: z.string().url(),
+  VNPAY_IPN_URL: z.string().url(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
