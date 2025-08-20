@@ -304,7 +304,7 @@ let socketServer: SocketServer | null = null;
 export const initializeSocketServer = (httpServer: HTTPServer): SocketServer => {
   if (!socketServer) {
     socketServer = new SocketServer(httpServer);
-    console.log('✅ Socket.IO server initialized');
+    // Socket.IO server initialized silently
   }
   return socketServer;
 };
