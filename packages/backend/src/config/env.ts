@@ -10,6 +10,7 @@ const EnvSchema = z.object({
     .transform((v) => (typeof v === 'string' ? v === 'true' : v))
     .default(true),
   CORS_ORIGIN: z.string().default('http://localhost:3001'),
+  FRONTEND_URL: z.string().default('http://localhost:3001'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   
