@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import type { ReactElement } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import LandingScreen from './src/screens/LandingScreen';
 import OnboardingContainer from './src/screens/OnboardingContainer';
 import SignInScreen from './src/screens/SignInScreen';
@@ -15,7 +17,6 @@ import DoctorDetailsScreen from './src/screens/DoctorDetailsScreen';
 import SelectTimeScreen from './src/screens/SelectTimeScreen';
 import ManageAppointmentScreen from './src/screens/ManageAppointmentScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-
 type Screen = 'landing' | 'onboarding' | 'signin' | 'signup' | 'verify-email' | 'forgot-password' | 'reset-password' | 'verify-reset-email' | 'edit-profile' | 'main-app' | 'location' | 'find-doctors' | 'doctor-details' | 'select-time' | 'manage-appointments' | 'profile';
 
 type UserData = {
@@ -23,9 +24,33 @@ type UserData = {
   email: string;
 };
 
-export default function App(): ReactElement {
+// Main App component that uses AuthContext
+function AppContent(): ReactElement {
+  const { isAuthenticated, user, isLoading, login, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
   const [userData, setUserData] = useState<UserData>({ name: '', email: '' });
+
+  // Navigate to main app if authenticated
+  React.useEffect(() => {
+    if (isAuthenticated && currentScreen === 'landing') {
+      setCurrentScreen('main-app');
+    }
+  }, [isAuthenticated]);
+
+  const handleSuccessfulAuth = (): void => {
+    setCurrentScreen('main-app');
+    console.log('✅ Authentication successful, navigating to main app');
+  };
+
+  const handleLogout = async (): Promise<void> => {
+    try {
+      await logout();
+      setCurrentScreen('landing');
+      console.log('✅ Logout successful');
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+    }
+  };
 
   const navigateToOnboarding = (): void => {
     console.log('Navigating to onboarding screen...');
@@ -107,25 +132,26 @@ export default function App(): ReactElement {
     setCurrentScreen('profile');
   };
 
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    return (
+      <View style={loadingStyles.container}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={loadingStyles.text}>Đang kiểm tra đăng nhập...</Text>
+      </View>
+    );
+  }
+
   switch (currentScreen) {
     case 'signin':
       return (
-        <SignInScreen 
+        <SignInScreen
           onBack={navigateToLanding}
-          onSignIn={() => {
-            console.log('Sign in successful');
-            setCurrentScreen('main-app');
-          }}
+          onSignIn={handleSuccessfulAuth}
           onCreateAccount={navigateToSignUp}
           onForgotPassword={navigateToForgotPassword}
-          onGoogleSignIn={() => {
-            console.log('Google sign in');
-            setCurrentScreen('main-app');
-          }}
-          onFacebookSignIn={() => {
-            console.log('Facebook sign in');
-            setCurrentScreen('main-app');
-          }}
+          onGoogleSignIn={handleSuccessfulAuth}
+          onFacebookSignIn={handleSuccessfulAuth}
         />
       );
     case 'signup':
@@ -138,10 +164,12 @@ export default function App(): ReactElement {
           }}
           onSignIn={navigateToSignIn}
           onGoogleSignUp={() => {
-            console.log('Google sign up');
+            // TODO: Implement Google sign up when social auth is fixed
+            console.log('Google sign up - not implemented yet');
           }}
           onFacebookSignUp={() => {
-            console.log('Facebook sign up');
+            // TODO: Implement Facebook sign up when social auth is fixed
+            console.log('Facebook sign up - not implemented yet');
           }}
         />
       );
@@ -279,4 +307,27 @@ export default function App(): ReactElement {
     default:
       return <LandingScreen onLogoPress={navigateToOnboarding} />;
   }
+}
+
+const loadingStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  text: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#333333',
+  },
+});
+
+// Main App component with AuthProvider
+export default function App(): ReactElement {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }

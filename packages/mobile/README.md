@@ -24,7 +24,7 @@ npx localtunnel@latest --port 3001
 ### Bước 3: Khởi động Mobile với Tunnel
 Mở terminal khác, chạy Expo với API endpoint từ tunnel:
 ```bash
-EXPO_PUBLIC_API_BASE=https://eighty-bats-talk.loca.lt yarn workspace mobile start --tunnel
+EXPO_PUBLIC_API_BASE=https://every-ties-hide.loca.lt yarn workspace mobile start --tunnel
 ```
 
 ### Bước 4: Kết nối Expo Go
