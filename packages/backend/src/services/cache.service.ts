@@ -14,13 +14,11 @@ export class CacheService {
     try {
       if (env.REDIS_URL) {
         this.redis = new Redis(env.REDIS_URL, {
-          retryDelayOnFailover: 100,
           maxRetriesPerRequest: 3,
           lazyConnect: true,
         });
 
         this.redis.on('connect', () => {
-          console.log('✅ Redis connected successfully');
           this.isConnected = true;
         });
 
@@ -30,13 +28,12 @@ export class CacheService {
         });
 
         this.redis.on('close', () => {
-          console.log('🔌 Redis connection closed');
           this.isConnected = false;
         });
 
         await this.redis.connect();
       } else {
-        console.log('⚠️ Redis URL not configured, caching disabled');
+        // Redis not configured, caching disabled
       }
     } catch (error) {
       console.error('Failed to initialize Redis:', error);
