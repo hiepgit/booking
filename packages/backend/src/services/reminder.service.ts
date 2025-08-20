@@ -24,25 +24,20 @@ export class ReminderService {
       return;
     }
 
-    console.log('🔔 Initializing Reminder Service...');
-
-    // Run every 5 minutes to check for pending reminders
+    // Initialize cron jobs silently
     cron.schedule('*/5 * * * *', async () => {
       await this.processPendingReminders();
     });
 
-    // Run every hour to schedule upcoming appointment reminders
     cron.schedule('0 * * * *', async () => {
       await this.scheduleUpcomingReminders();
     });
 
-    // Run daily at midnight to clean up old notifications
     cron.schedule('0 0 * * *', async () => {
       await this.cleanupOldNotifications();
     });
 
     this.isInitialized = true;
-    console.log('✅ Reminder Service initialized with cron jobs');
   }
 
   /**
