@@ -7,7 +7,116 @@ import { prisma } from '../libs/prisma.js';
 
 const router = Router();
 
+/**
+ * @openapi
+ * /reviews:
+ *   post:
+ *     tags:
+ *       - Reviews
+ *     security:
+ *       - bearerAuth: []
+ *     summary: Create a review
+ *     description: Create a review for a doctor (patients only)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - doctorId
+ *               - rating
+ *             properties:
+ *               doctorId:
+ *                 type: string
+ *                 description: Doctor ID
+ *               rating:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *               comment:
+ *                 type: string
+ *                 maxLength: 500
+ *     responses:
+ *       201:
+ *         description: Review created successfully
+ *       400:
+ *         description: Validation error or cannot review doctor
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Only patients can create reviews
+ */
+router.post('/', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.sub;
+    const { doctorId, rating, comment } = ReviewCreateSchema.parse(req.body);
+
+    // Check if user is a patient
+    if (req.user.role !== UserRole.PATIENT) {
+      return res.status(403).json({
+        error: {
+          message: 'Only patients can create reviews',
+          code: 'FORBIDDEN'
+        }
+      });
+    }
+
+    // Get patient ID
+    const patient = await prisma.patient.findUnique({
+      where: { userId }
+    });
+
+    if (!patient) {
+      return res.status(404).json({
+        error: {
+          message: 'Patient profile not found',
+          code: 'PATIENT_NOT_FOUND'
+        }
+      });
+    }
+
+    const review = await ReviewService.createReview({
+      patientId: patient.id,
+      doctorId,
+      rating,
+      comment,
+    });
+
+    // Transform the response to flatten patient data
+    const transformedReview = {
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      patient: {
+        id: patient.id,
+        firstName: review.patient.user.firstName,
+        lastName: review.patient.user.lastName,
+        avatar: review.patient.user.avatar,
+      },
+      doctor: {
+        id: review.doctorId
+      }
+    };
+
+    res.status(201).json({
+      message: 'Review created successfully',
+      review: transformedReview,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Validation schemas
+const ReviewCreateSchema = z.object({
+  doctorId: z.string().min(1, 'Doctor ID is required'),
+  rating: z.number().int().min(1, 'Rating must be at least 1').max(5, 'Rating must be at most 5'),
+  comment: z.string().max(500, 'Comment must be at most 500 characters').optional(),
+});
+
 const ReviewUpdateSchema = z.object({
   rating: z.number().int().min(1, 'Rating must be at least 1').max(5, 'Rating must be at most 5').optional(),
   comment: z.string().max(500, 'Comment must be at most 500 characters').optional(),
@@ -48,6 +157,7 @@ router.get('/:id', async (req, res, next) => {
       include: {
         patient: {
           select: {
+            id: true,
             user: {
               select: {
                 firstName: true,
@@ -59,6 +169,7 @@ router.get('/:id', async (req, res, next) => {
         },
         doctor: {
           select: {
+            id: true,
             user: {
               select: {
                 firstName: true,
@@ -85,7 +196,29 @@ router.get('/:id', async (req, res, next) => {
       });
     }
 
-    res.json(review);
+    // Transform the response to flatten patient data
+    const transformedReview = {
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      patient: {
+        id: review.patient.id,
+        firstName: review.patient.user.firstName,
+        lastName: review.patient.user.lastName,
+        avatar: review.patient.user.avatar,
+      },
+      doctor: {
+        id: review.doctor.id,
+        firstName: review.doctor.user.firstName,
+        lastName: review.doctor.user.lastName,
+        avatar: review.doctor.user.avatar,
+        specialty: review.doctor.specialty?.name,
+      }
+    };
+
+    res.json(transformedReview);
   } catch (err) {
     next(err);
   }
