@@ -133,6 +133,7 @@ export class ReviewService {
         include: {
           patient: {
             select: {
+              id: true,
               user: {
                 select: {
                   firstName: true,
@@ -151,8 +152,26 @@ export class ReviewService {
       this.getDoctorRatingStats(doctorId),
     ]);
 
+    // Transform reviews to flatten patient data
+    const transformedReviews = reviews.map(review => ({
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      patient: {
+        id: review.patient.id,
+        firstName: review.patient.user.firstName,
+        lastName: review.patient.user.lastName,
+        avatar: review.patient.user.avatar,
+      },
+      doctor: {
+        id: review.doctorId
+      }
+    }));
+
     return {
-      data: reviews,
+      data: transformedReviews,
       pagination: {
         page,
         limit,
