@@ -6,7 +6,7 @@ import { UploadService } from '../services/upload.service.js';
 export async function initializeUploads() {
   try {
     await UploadService.initializeDirectories();
-    console.log('✅ Upload directories initialized successfully');
+    // Upload directories initialized silently
   } catch (error) {
     console.error('❌ Failed to initialize upload directories:', error);
     throw error;
