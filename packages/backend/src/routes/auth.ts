@@ -70,6 +70,15 @@ router.post('/register', authRateLimit, async (req, res, next) => {
       },
     });
 
+    // Auto-create patient profile for PATIENT role users
+    if (body.role === 'PATIENT') {
+      await prisma.patient.create({
+        data: {
+          userId: user.id,
+        },
+      });
+    }
+
     const otp = await createOtp(user.email, 'REGISTER');
     await sendOtpEmail(user.email, otp, firstName);
 
