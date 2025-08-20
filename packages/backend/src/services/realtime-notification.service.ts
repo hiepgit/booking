@@ -104,11 +104,12 @@ export class RealtimeNotificationService {
     appointmentDate: string,
     appointmentTime: string
   ) {
-    const statusMessages = {
+    const statusMessages: Record<AppointmentStatus, string> = {
+      PENDING: `Cuộc hẹn của bạn với bác sĩ ${doctorName} vào ${appointmentTime} ngày ${appointmentDate} đang chờ xác nhận.`,
       CONFIRMED: `Cuộc hẹn của bạn với bác sĩ ${doctorName} vào ${appointmentTime} ngày ${appointmentDate} đã được xác nhận.`,
       CANCELLED: `Cuộc hẹn của bạn với bác sĩ ${doctorName} vào ${appointmentTime} ngày ${appointmentDate} đã bị hủy.`,
-      RESCHEDULED: `Cuộc hẹn của bạn với bác sĩ ${doctorName} đã được dời lịch. Vui lòng kiểm tra thời gian mới.`,
       COMPLETED: `Cuộc hẹn của bạn với bác sĩ ${doctorName} đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ.`,
+      IN_PROGRESS: `Cuộc hẹn của bạn với bác sĩ ${doctorName} đang diễn ra.`,
       NO_SHOW: `Bạn đã không đến cuộc hẹn với bác sĩ ${doctorName} vào ${appointmentTime} ngày ${appointmentDate}.`
     };
 
@@ -116,7 +117,6 @@ export class RealtimeNotificationService {
       PENDING: 'GENERAL',
       CONFIRMED: 'APPOINTMENT_CONFIRMED',
       CANCELLED: 'APPOINTMENT_CANCELLED',
-      RESCHEDULED: 'APPOINTMENT_RESCHEDULED',
       COMPLETED: 'APPOINTMENT_COMPLETED',
       IN_PROGRESS: 'GENERAL',
       NO_SHOW: 'GENERAL'
@@ -139,8 +139,7 @@ export class RealtimeNotificationService {
           specialty: appointment.doctor.specialty.name,
           clinicName: appointment.clinic?.name
         },
-        priority: newStatus === 'CANCELLED' ? 'HIGH' : 'NORMAL',
-        appointmentId: appointment.id
+        priority: newStatus === 'CANCELLED' ? 'HIGH' : 'NORMAL'
       });
     }
   }
@@ -157,10 +156,13 @@ export class RealtimeNotificationService {
   ) {
     const patientName = `${appointment.patient.user.firstName} ${appointment.patient.user.lastName}`;
     
-    const statusMessages = {
+    const statusMessages: Record<AppointmentStatus, string> = {
+      PENDING: `Có cuộc hẹn mới từ bệnh nhân ${patientName} vào ${appointmentTime} ngày ${appointmentDate}.`,
       CONFIRMED: `Bệnh nhân ${patientName} đã xác nhận cuộc hẹn vào ${appointmentTime} ngày ${appointmentDate}.`,
       CANCELLED: `Bệnh nhân ${patientName} đã hủy cuộc hẹn vào ${appointmentTime} ngày ${appointmentDate}.`,
-      PENDING: `Có cuộc hẹn mới từ bệnh nhân ${patientName} vào ${appointmentTime} ngày ${appointmentDate}.`
+      COMPLETED: `Cuộc hẹn với bệnh nhân ${patientName} đã hoàn thành.`,
+      IN_PROGRESS: `Cuộc hẹn với bệnh nhân ${patientName} đang diễn ra.`,
+      NO_SHOW: `Bệnh nhân ${patientName} đã vắng mặt cuộc hẹn vào ${appointmentTime} ngày ${appointmentDate}.`
     };
 
     const message = statusMessages[newStatus];
@@ -179,8 +181,7 @@ export class RealtimeNotificationService {
           appointmentTime,
           patientId: appointment.patient.id
         },
-        priority: newStatus === 'PENDING' ? 'HIGH' : 'NORMAL',
-        appointmentId: appointment.id
+        priority: newStatus === 'PENDING' ? 'HIGH' : 'NORMAL'
       });
     }
   }
@@ -227,8 +228,7 @@ export class RealtimeNotificationService {
         doctorId: appointment.doctor.id,
         showFeedbackRequest: true
       },
-      priority: 'NORMAL',
-      appointmentId: appointment.id
+      priority: 'NORMAL'
     });
   }
 
@@ -250,8 +250,7 @@ export class RealtimeNotificationService {
         doctorId: appointment.doctor.id,
         noShow: true
       },
-      priority: 'HIGH',
-      appointmentId: appointment.id
+      priority: 'HIGH'
     });
   }
 
@@ -400,8 +399,7 @@ export class RealtimeNotificationService {
           amount,
           doctorName
         },
-        priority,
-        appointmentId
+        priority
       });
 
     } catch (error) {
@@ -441,8 +439,7 @@ export class RealtimeNotificationService {
             duration,
             isSystemNotification: true
           },
-          priority: 'HIGH',
-          scheduledFor: scheduledTime
+          priority: 'HIGH'
         });
       }
 
