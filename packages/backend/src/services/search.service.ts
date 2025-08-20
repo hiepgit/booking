@@ -52,11 +52,13 @@ export interface AdvancedClinicSearchFilters {
   
   // Operating hours
   openNow?: boolean;
+  operatingDay?: string;
+  operatingTime?: string;
   operatingHours?: {
     day: string;
     time: string;
   };
-  
+
   // Accessibility and amenities
   hasParking?: boolean;
   isAccessible?: boolean;
@@ -75,6 +77,8 @@ export interface SearchAnalytics {
   resultCount: number;
   searchTime: number;
   userId?: string;
+  userAgent?: string;
+  ip?: string;
   timestamp: Date;
 }
 
@@ -298,28 +302,28 @@ export class SearchService {
           ...cd,
           clinic: {
             ...cd.clinic,
-            distance: this.calculateDistance(
+            distance: cd.clinic.latitude && cd.clinic.longitude ? this.calculateDistance(
               latitude,
               longitude,
               cd.clinic.latitude,
               cd.clinic.longitude
-            )
+            ) : 999
           }
         }))
-      }));
+      })) as any;
 
       // Filter by radius if specified
       if (radius) {
-        doctorsWithDistance = doctorsWithDistance.filter(doctor =>
-          doctor.clinicDoctors.some(cd => cd.clinic.distance <= radius)
+        doctorsWithDistance = doctorsWithDistance.filter((doctor: any) =>
+          doctor.clinicDoctors.some((cd: any) => cd.clinic.distance <= radius)
         );
       }
 
       // Sort by distance if requested
       if (sortBy === 'distance') {
-        doctorsWithDistance.sort((a, b) => {
-          const distanceA = Math.min(...a.clinicDoctors.map(cd => cd.clinic.distance));
-          const distanceB = Math.min(...b.clinicDoctors.map(cd => cd.clinic.distance));
+        doctorsWithDistance.sort((a: any, b: any) => {
+          const distanceA = Math.min(...a.clinicDoctors.map((cd: any) => cd.clinic.distance));
+          const distanceB = Math.min(...b.clinicDoctors.map((cd: any) => cd.clinic.distance));
           return sortOrder === 'asc' ? distanceA - distanceB : distanceB - distanceA;
         });
       }
@@ -598,22 +602,22 @@ export class SearchService {
     if (latitude && longitude) {
       clinicsWithDistance = clinics.map(clinic => ({
         ...clinic,
-        distance: this.calculateDistance(
+        distance: clinic.latitude && clinic.longitude ? this.calculateDistance(
           latitude,
           longitude,
           clinic.latitude,
           clinic.longitude
-        )
-      }));
+        ) : 999
+      })) as any;
 
       // Filter by radius if specified
       if (radius) {
-        clinicsWithDistance = clinicsWithDistance.filter(clinic => clinic.distance <= radius);
+        clinicsWithDistance = clinicsWithDistance.filter((clinic: any) => clinic.distance <= radius);
       }
 
       // Sort by distance if requested
       if (sortBy === 'distance') {
-        clinicsWithDistance.sort((a, b) => {
+        clinicsWithDistance.sort((a: any, b: any) => {
           return sortOrder === 'asc' ? a.distance - b.distance : b.distance - a.distance;
         });
       }
