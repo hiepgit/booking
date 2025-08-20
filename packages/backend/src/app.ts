@@ -20,6 +20,7 @@ import searchRouter from './routes/search.js';
 import notificationsRouter from './routes/notifications.js';
 import performanceRouter from './routes/performance.js';
 import paymentsRouter from './routes/payments.js';
+import { adminRoutes } from './routes/admin.js';
 import { getAppVersion } from './libs/version.js';
 import { CacheService } from './services/cache.service.js';
 import { PerformanceMonitor, cacheHitMiddleware } from './middleware/performance.middleware.js';
@@ -82,6 +83,9 @@ export function createServer() {
   app.use('/notifications', notificationsRouter);
   app.use('/performance', performanceRouter);
   app.use('/payments', paymentsRouter);
+
+  // Admin routes (protected)
+  app.use('/admin', adminRoutes);
 
   // Root endpoint
   app.get('/', (_req, res) => {
