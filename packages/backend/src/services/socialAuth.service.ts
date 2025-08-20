@@ -22,7 +22,7 @@ export interface SocialUserProfile {
 export const GOOGLE_OAUTH_CONFIG = {
   clientId: env.GOOGLE_CLIENT_ID || '',
   clientSecret: env.GOOGLE_CLIENT_SECRET || '',
-  redirectUri: env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback',
+  redirectUri: env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/auth/google/callback',
   scope: ['email', 'profile'],
   authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenUrl: 'https://oauth2.googleapis.com/token',
@@ -33,7 +33,7 @@ export const GOOGLE_OAUTH_CONFIG = {
 export const FACEBOOK_OAUTH_CONFIG = {
   clientId: env.FACEBOOK_CLIENT_ID || '',
   clientSecret: env.FACEBOOK_CLIENT_SECRET || '',
-  redirectUri: env.FACEBOOK_REDIRECT_URI || 'http://localhost:3000/api/auth/facebook/callback',
+  redirectUri: env.FACEBOOK_REDIRECT_URI || 'http://localhost:3001/auth/facebook/callback',
   scope: ['email', 'public_profile'],
   authUrl: 'https://www.facebook.com/v12.0/dialog/oauth',
   tokenUrl: 'https://graph.facebook.com/v12.0/oauth/access_token',
@@ -142,7 +142,7 @@ export async function handleSocialLogin(profile: SocialUserProfile): Promise<{
         firstName: profile.firstName,
         lastName: profile.lastName,
         avatar: profile.avatar,
-        passwordHash: '', // No password for social login
+        passwordHash: null, // No password for social login
         role: 'PATIENT', // Default role
         isVerified: true, // Social accounts are pre-verified
         isActive: true,
