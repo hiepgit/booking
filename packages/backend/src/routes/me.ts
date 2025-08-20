@@ -4,7 +4,6 @@ import { UserService } from '../services/user.service.js';
 import { UploadService } from '../services/upload.service.js';
 import { hashPassword, verifyPassword } from '../services/password.service.js';
 import { z } from 'zod';
-import { Gender } from '@prisma/client';
 
 const router = Router();
 
@@ -12,8 +11,10 @@ const router = Router();
 const UpdateProfileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50).optional(),
   lastName: z.string().min(1, 'Last name is required').max(50).optional(),
-  dateOfBirth: z.string().datetime().optional().transform(val => val ? new Date(val) : undefined),
-  gender: z.nativeEnum(Gender).optional(),
+  dateOfBirth: z.string().refine((val) => !val || !isNaN(Date.parse(val)), {
+    message: 'Invalid datetime format'
+  }).optional().transform(val => val ? new Date(val) : undefined),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
   address: z.string().max(200).optional(),
   phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format').optional(),
 });
@@ -298,7 +299,7 @@ router.delete('/avatar', requireAuth, async (req, res, next) => {
     
     // Remove avatar from profile
     const updatedProfile = await UserService.updateUserProfile(userId, {
-      avatar: null
+      avatar: undefined
     });
 
     // Delete avatar file if exists
@@ -367,7 +368,7 @@ router.post('/change-password', requireAuth, async (req, res, next) => {
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await verifyPassword(data.currentPassword, user.passwordHash);
+    const isCurrentPasswordValid = await verifyPassword(data.currentPassword, user.passwordHash || '');
     if (!isCurrentPasswordValid) {
       return res.status(400).json({
         error: {
