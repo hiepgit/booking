@@ -1,4 +1,5 @@
 import express from 'express';
+import { createServer as createHttpServer } from 'http';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -16,7 +17,11 @@ import reviewsRouter from './routes/reviews.js';
 import clinicsRouter from './routes/clinics.js';
 import appointmentsRouter from './routes/appointments.js';
 import searchRouter from './routes/search.js';
+import notificationsRouter from './routes/notifications.js';
+import performanceRouter from './routes/performance.js';
 import { getAppVersion } from './libs/version.js';
+import { CacheService } from './services/cache.service.js';
+import { PerformanceMonitor, cacheHitMiddleware } from './middleware/performance.middleware.js';
 
 const env = loadEnv();
 
@@ -43,7 +48,11 @@ export function createServer() {
   
   // Logging middleware
   app.use(morgan('dev'));
-  
+
+  // Performance monitoring
+  app.use(PerformanceMonitor.trackPerformance());
+  app.use(cacheHitMiddleware());
+
   // Global rate limiting
   app.use(apiRateLimit);
 
@@ -69,6 +78,8 @@ export function createServer() {
   app.use('/clinics', clinicsRouter);
   app.use('/appointments', appointmentsRouter);
   app.use('/search', searchRouter);
+  app.use('/notifications', notificationsRouter);
+  app.use('/performance', performanceRouter);
 
   // Root endpoint
   app.get('/', (_req, res) => {
@@ -132,5 +143,8 @@ export function createServer() {
     res.status(isZod ? 400 : status).json(body);
   });
 
-  return app;
+  // Create HTTP server for WebSocket integration
+  const httpServer = createHttpServer(app);
+
+  return { app, httpServer };
 }
