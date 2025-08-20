@@ -8,7 +8,7 @@ export interface Doctor {
   specialtyId: string;
   experience: number;
   biography: string;
-  consultationFee: string;
+  consultationFee: number; // Changed from string to number to match backend Decimal
   averageRating: number;
   totalReviews: number;
   isAvailable: boolean;
@@ -63,7 +63,15 @@ export async function getDoctors(params?: {
   page?: number;
   limit?: number;
   specialtyId?: string;
-  search?: string;
+  q?: string; // Changed from 'search' to 'q' to match backend
+  city?: string;
+  minRating?: number;
+  available?: boolean;
+  minFee?: number;
+  maxFee?: number;
+  experience?: number;
+  sortBy?: 'rating' | 'experience' | 'fee' | 'name';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   success: boolean;
   data?: DoctorsResponse;
@@ -71,12 +79,20 @@ export async function getDoctors(params?: {
 }> {
   try {
     console.log('👨‍⚕️ Fetching doctors with params:', params);
-    
+
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.specialtyId) queryParams.append('specialtyId', params.specialtyId);
-    if (params?.search) queryParams.append('search', params.search);
+    if (params?.q) queryParams.append('q', params.q); // Changed from 'search' to 'q'
+    if (params?.city) queryParams.append('city', params.city);
+    if (params?.minRating) queryParams.append('minRating', params.minRating.toString());
+    if (params?.available !== undefined) queryParams.append('available', params.available.toString());
+    if (params?.minFee) queryParams.append('minFee', params.minFee.toString());
+    if (params?.maxFee) queryParams.append('maxFee', params.maxFee.toString());
+    if (params?.experience) queryParams.append('experience', params.experience.toString());
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
     const url = `/doctors${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     const response = await api.get(url);
@@ -171,27 +187,45 @@ export async function getDoctorById(doctorId: string): Promise<{
 }
 
 /**
- * Search doctors
+ * Search doctors with advanced filters
  */
-export async function searchDoctors(query: string, params?: {
+export async function searchDoctors(params?: {
+  q?: string; // Changed from query parameter to match backend
+  specialtyId?: string;
+  city?: string;
+  minRating?: number;
+  available?: boolean;
+  minFee?: number;
+  maxFee?: number;
+  experience?: number;
   page?: number;
   limit?: number;
-  specialtyId?: string;
+  sortBy?: 'rating' | 'experience' | 'fee' | 'name';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   success: boolean;
   data?: DoctorsResponse;
   error?: DoctorsError;
 }> {
   try {
-    console.log('🔍 Searching doctors with query:', query);
-    
+    console.log('🔍 Searching doctors with params:', params);
+
     const queryParams = new URLSearchParams();
-    queryParams.append('search', query);
+    if (params?.q) queryParams.append('q', params.q); // Changed from 'search' to 'q'
+    if (params?.specialtyId) queryParams.append('specialtyId', params.specialtyId);
+    if (params?.city) queryParams.append('city', params.city);
+    if (params?.minRating) queryParams.append('minRating', params.minRating.toString());
+    if (params?.available !== undefined) queryParams.append('available', params.available.toString());
+    if (params?.minFee) queryParams.append('minFee', params.minFee.toString());
+    if (params?.maxFee) queryParams.append('maxFee', params.maxFee.toString());
+    if (params?.experience) queryParams.append('experience', params.experience.toString());
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.specialtyId) queryParams.append('specialtyId', params.specialtyId);
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
-    const response = await api.get(`/search/doctors?${queryParams.toString()}`);
+    const url = `/search/doctors${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await api.get(url);
     
     if (response.status === 200) {
       console.log('✅ Doctor search completed:', response.data.data.length, 'results');
