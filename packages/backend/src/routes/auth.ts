@@ -53,8 +53,34 @@ router.post('/register', authRateLimit, async (req, res, next) => {
       });
     }
     
-    const exists = await prisma.user.findUnique({ where: { email: body.email } });
-    if (exists) return res.status(409).json({ error: { message: 'Email already exists' } });
+    const existingUser = await prisma.user.findUnique({ where: { email: body.email } });
+
+    if (existingUser) {
+      // If user exists and is verified, reject registration
+      if (existingUser.isVerified) {
+        return res.status(409).json({
+          error: {
+            message: 'Email already exists and is verified. Please sign in instead.',
+            code: 'EMAIL_ALREADY_VERIFIED'
+          }
+        });
+      }
+
+      // If user exists but not verified, allow resending OTP
+      console.log(`📧 User ${body.email} exists but not verified. Resending OTP...`);
+
+      // Generate new OTP for existing unverified user
+      const otp = await createOtp(existingUser.email, 'REGISTER');
+
+      // Send OTP email
+      await sendOtpEmail(existingUser.email, otp, existingUser.firstName);
+
+      return res.status(200).json({
+        message: 'Account exists but not verified. New OTP sent to your email.',
+        userId: existingUser.id,
+        resent: true
+      });
+    }
 
     const [firstName, ...rest] = body.fullName.split(' ');
     const lastName = rest.join(' ');
@@ -82,9 +108,9 @@ router.post('/register', authRateLimit, async (req, res, next) => {
     const otp = await createOtp(user.email, 'REGISTER');
     await sendOtpEmail(user.email, otp, firstName);
 
-    res.json({ 
+    res.status(201).json({
       message: 'Registration successful. Please check your email for OTP verification.',
-      userId: user.id 
+      userId: user.id
     });
   } catch (err) {
     next(err);
@@ -154,6 +180,8 @@ router.post('/login', loginRateLimit, async (req, res, next) => {
     });
     
     if (!user) return res.status(401).json({ error: { message: 'Invalid credentials' } });
+    if (!user.passwordHash) return res.status(401).json({ error: { message: 'Invalid credentials' } });
+
     const ok = await verifyPassword(body.password, user.passwordHash);
     if (!ok) return res.status(401).json({ error: { message: 'Invalid credentials' } });
     if (!user.isVerified) return res.status(403).json({ error: { message: 'Account not verified' } });
