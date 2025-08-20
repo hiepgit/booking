@@ -313,4 +313,42 @@ export class UserService {
 
     return user;
   }
+
+  /**
+   * Get user by ID with password hash
+   */
+  static async getUserById(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        passwordHash: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        isVerified: true,
+        isActive: true,
+      }
+    });
+
+    return user;
+  }
+
+  /**
+   * Update user password
+   */
+  static async updateUserPassword(userId: string, passwordHash: string) {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+      select: {
+        id: true,
+        email: true,
+        updatedAt: true,
+      }
+    });
+
+    return user;
+  }
 }

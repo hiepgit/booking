@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../security/requireAuth.js';
 import { UserService } from '../services/user.service.js';
 import { UploadService } from '../services/upload.service.js';
+import { hashPassword, verifyPassword } from '../services/password.service.js';
 import { z } from 'zod';
 import { Gender } from '@prisma/client';
 
@@ -22,6 +23,11 @@ const UpdatePatientProfileSchema = z.object({
   allergies: z.string().max(500).optional(),
   emergencyContact: z.string().max(100).optional(),
   insuranceNumber: z.string().max(50).optional(),
+});
+
+const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
 });
 
 /**
@@ -303,6 +309,80 @@ router.delete('/avatar', requireAuth, async (req, res, next) => {
     res.json({
       message: 'Avatar deleted successfully',
       user: updatedProfile
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @openapi
+ * /me/change-password:
+ *   post:
+ *     tags:
+ *       - Profile
+ *     security:
+ *       - bearerAuth: []
+ *     summary: Change user password
+ *     description: Change the current user's password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 description: Current password
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 8
+ *                 description: New password (minimum 8 characters)
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Validation error or incorrect current password
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/change-password', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.sub;
+    const data = ChangePasswordSchema.parse(req.body);
+
+    // Get current user to verify current password
+    const user = await UserService.getUserById(userId);
+    if (!user) {
+      return res.status(404).json({
+        error: {
+          message: 'User not found',
+          code: 'USER_NOT_FOUND'
+        }
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await verifyPassword(data.currentPassword, user.passwordHash);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        error: {
+          message: 'Current password is incorrect',
+          code: 'INVALID_CURRENT_PASSWORD'
+        }
+      });
+    }
+
+    // Hash new password and update
+    const newPasswordHash = await hashPassword(data.newPassword);
+    await UserService.updateUserPassword(userId, newPasswordHash);
+
+    res.json({
+      message: 'Password changed successfully'
     });
   } catch (err) {
     next(err);
