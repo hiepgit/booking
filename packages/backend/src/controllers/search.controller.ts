@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 import { SearchService } from '../services/search.service.js';
-import { AnalyticsService } from '../services/analytics.service.js';
 import {
   AdvancedDoctorSearchSchema,
   AdvancedClinicSearchSchema,
@@ -258,7 +257,7 @@ export class SearchController {
         data: suggestions,
         meta: {
           originalQuery: query,
-          suggestionsCount: suggestions.length
+          suggestionsCount: suggestions.suggestionsCount
         }
       });
     } catch (error: any) {
