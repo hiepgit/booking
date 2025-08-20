@@ -248,7 +248,7 @@ Healthcare Booking System`,
       });
     }
 
-    console.log(`✅ Initialized ${templates.length} email templates`);
+    // Email templates initialized silently
   }
 
   /**
