@@ -1,335 +1,405 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ReactElement } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   StatusBar,
   SafeAreaView,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
-  Modal
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { getUserProfile, updateUserProfile, updatePatientProfile, uploadAvatar, UserProfile, UpdateProfileRequest, UpdatePatientProfileRequest } from '../services/me.service';
+import { useAuth } from '../contexts/AuthContext';
+import * as ImagePicker from 'expo-image-picker';
 
-type EditProfileScreenProps = {
-  onProfileComplete?: () => void;
-  onBack?: () => void;
-  initialName?: string;
-  initialEmail?: string;
-};
-
-// Type guard functions để đảm bảo type safety
-function isFunction(fn: unknown): fn is (() => void) {
-  return typeof fn === 'function';
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
+interface EditProfileScreenProps {
+  onNavigateBack?: () => void;
 }
 
 export default function EditProfileScreen({
-  onProfileComplete,
-  onBack,
-  initialName = 'Nguyễn Văn A',
-  initialEmail = 'nguyenvana@example.com'
+  onNavigateBack,
 }: EditProfileScreenProps): ReactElement {
-  const [fullName, setFullName] = useState<string>(initialName);
-  const [nickname, setNickname] = useState<string>('');
-  const [email, setEmail] = useState<string>(initialEmail);
-  const [dateOfBirth, setDateOfBirth] = useState<string>('');
-  const [gender, setGender] = useState<string>('');
+  const { user: authUser, updateUser } = useAuth();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(authUser);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFullNameChange = (text: string): void => {
-    if (isString(text)) {
-      setFullName(text);
+  // Form fields
+  const [firstName, setFirstName] = useState<string>('');
+  const [lastName, setLastName] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
+  const [dateOfBirth, setDateOfBirth] = useState<string>('');
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | ''>('');
+  const [address, setAddress] = useState<string>('');
+
+  // Patient-specific fields
+  const [bloodType, setBloodType] = useState<string>('');
+  const [allergies, setAllergies] = useState<string>('');
+  const [emergencyContact, setEmergencyContact] = useState<string>('');
+  const [insuranceNumber, setInsuranceNumber] = useState<string>('');
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  useEffect(() => {
+    if (userProfile) {
+      populateForm(userProfile);
     }
-  };
+  }, [userProfile]);
 
-  const handleNicknameChange = (text: string): void => {
-    if (isString(text)) {
-      setNickname(text);
-    }
-  };
-
-  const handleEmailChange = (text: string): void => {
-    if (isString(text)) {
-      setEmail(text);
-    }
-  };
-
-  const handleDateOfBirthChange = (text: string): void => {
-    if (isString(text)) {
-      setDateOfBirth(text);
-    }
-  };
-
-  const handleGenderChange = (text: string): void => {
-    if (isString(text)) {
-      setGender(text);
-    }
-  };
-
-  const handleSaveProfile = async (): Promise<void> => {
-    if (!fullName.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập họ và tên');
-      return;
-    }
-
-    if (!email.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập email');
-      return;
-    }
-
-    setIsLoading(true);
-    
+  const fetchUserProfile = async (): Promise<void> => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('Profile saved:', {
-        fullName,
-        nickname,
-        email,
-        dateOfBirth,
-        gender
-      });
-      
-      setShowSuccessModal(true);
-      
-      // Auto close modal and navigate after 3 seconds
-      setTimeout(() => {
-        setShowSuccessModal(false);
-        if (isFunction(onProfileComplete)) {
-          onProfileComplete();
+      setIsLoading(true);
+      setError(null);
+
+      const result = await getUserProfile();
+
+      if (result.success && result.data) {
+        setUserProfile(result.data);
+        console.log('✅ EditProfileScreen: User profile loaded successfully');
+      } else {
+        console.log('❌ EditProfileScreen: Failed to load user profile:', result.error);
+        setError(result.error?.message || 'Failed to load user profile');
+        // Fallback to auth user if available
+        if (authUser) {
+          setUserProfile(authUser);
         }
-      }, 3000);
-      
-    } catch (error) {
-      Alert.alert('Lỗi', 'Có lỗi xảy ra. Vui lòng thử lại sau.');
+      }
+    } catch (error: any) {
+      console.error('❌ EditProfileScreen: Unexpected error loading user profile:', error);
+      setError('Unexpected error loading user profile');
+      if (authUser) {
+        setUserProfile(authUser);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleBack = (): void => {
-    if (isFunction(onBack)) {
-      onBack();
-    } else {
-      console.log('Back button pressed but no onBack prop provided');
+  const populateForm = (profile: UserProfile): void => {
+    setFirstName(profile.firstName || '');
+    setLastName(profile.lastName || '');
+    setPhone(profile.phone || '');
+    setDateOfBirth(profile.dateOfBirth ? profile.dateOfBirth.split('T')[0] : '');
+    setGender(profile.gender || '');
+    setAddress(profile.address || '');
+
+    // Patient-specific fields
+    if (profile.patient) {
+      setBloodType(profile.patient.bloodType || '');
+      setAllergies(profile.patient.allergies || '');
+      setEmergencyContact(profile.patient.emergencyContact || '');
+      setInsuranceNumber(profile.patient.insuranceNumber || '');
     }
   };
 
-  const isFormValid = fullName.trim() && email.trim();
+  const handleSaveProfile = async (): Promise<void> => {
+    try {
+      setIsSaving(true);
+      setError(null);
+
+      // Validate required fields
+      if (!firstName.trim() || !lastName.trim()) {
+        Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ họ và tên');
+        return;
+      }
+
+      // Prepare basic profile data
+      const profileData: UpdateProfileRequest = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim() || undefined,
+        dateOfBirth: dateOfBirth ? `${dateOfBirth}T00:00:00.000Z` : undefined,
+        gender: gender || undefined,
+        address: address.trim() || undefined,
+      };
+
+      // Update basic profile
+      const profileResult = await updateUserProfile(profileData);
+
+      if (!profileResult.success) {
+        throw new Error(profileResult.error?.message || 'Failed to update profile');
+      }
+
+      // Update patient-specific data if user is a patient
+      if (userProfile?.role === 'PATIENT') {
+        const patientData: UpdatePatientProfileRequest = {
+          bloodType: bloodType.trim() || undefined,
+          allergies: allergies.trim() || undefined,
+          emergencyContact: emergencyContact.trim() || undefined,
+          insuranceNumber: insuranceNumber.trim() || undefined,
+        };
+
+        const patientResult = await updatePatientProfile(patientData);
+
+        if (!patientResult.success) {
+          throw new Error(patientResult.error?.message || 'Failed to update patient profile');
+        }
+
+        // Update local state with new data
+        if (patientResult.data) {
+          setUserProfile(patientResult.data);
+          updateUser(patientResult.data);
+        }
+      } else {
+        // For non-patient users, just update with basic profile data
+        const updatedProfile = { ...userProfile, ...profileResult.data } as UserProfile;
+        setUserProfile(updatedProfile);
+        updateUser(updatedProfile);
+      }
+
+      Alert.alert('Thành công', 'Hồ sơ đã được cập nhật thành công!', [
+        { text: 'OK', onPress: onNavigateBack }
+      ]);
+
+      console.log('✅ EditProfileScreen: Profile updated successfully');
+
+    } catch (error: any) {
+      console.error('❌ EditProfileScreen: Save profile error:', error);
+      setError(error.message || 'Failed to save profile');
+      Alert.alert('Lỗi', error.message || 'Không thể lưu hồ sơ. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleChangeAvatar = async (): Promise<void> => {
+    try {
+      // Request permission
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permissionResult.granted === false) {
+        Alert.alert('Quyền truy cập', 'Cần quyền truy cập thư viện ảnh để thay đổi avatar.');
+        return;
+      }
+
+      // Pick image
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setIsSaving(true);
+
+        const uploadResult = await uploadAvatar(result.assets[0].uri);
+
+        if (uploadResult.success && uploadResult.data) {
+          // Update local state
+          const updatedProfile = { ...userProfile, avatar: uploadResult.data.avatarUrl } as UserProfile;
+          setUserProfile(updatedProfile);
+          updateUser(updatedProfile);
+
+          Alert.alert('Thành công', 'Avatar đã được cập nhật!');
+        } else {
+          throw new Error(uploadResult.error?.message || 'Failed to upload avatar');
+        }
+      }
+    } catch (error: any) {
+      console.error('❌ EditProfileScreen: Change avatar error:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể thay đổi avatar. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Đang tải hồ sơ...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-        {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleBack}
-          accessible
-          accessibilityLabel="Quay lại"
-          activeOpacity={0.7}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#292D32" />
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onNavigateBack} style={styles.backButton}>
+          <MaterialIcons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Chỉnh sửa hồ sơ</Text>
+        <TouchableOpacity
+          onPress={handleSaveProfile}
+          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>Lưu</Text>
+          )}
+        </TouchableOpacity>
+      </View>
 
-        {/* Title */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>Hoàn thiện hồ sơ</Text>
-        </View>
+      {/* Content */}
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Content */}
-          <View style={styles.contentContainer}>
-            {/* Profile Avatar */}
-            <View style={styles.avatarContainer}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Error Message */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={fetchUserProfile} style={styles.retryButton}>
+              <Text style={styles.retryText}>Thử lại</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Avatar Section */}
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarContainer}>
+            {userProfile?.avatar ? (
+              <Image
+                source={{ uri: userProfile.avatar }}
+                style={styles.avatar}
+                onError={() => console.log('Failed to load avatar')}
+              />
+            ) : (
               <View style={styles.avatarPlaceholder}>
-                <MaterialIcons name="person" size={72} color="#E5E7EB" />
+                <MaterialIcons name="person" size={60} color="#9CA3AF" />
               </View>
-              <TouchableOpacity style={styles.editAvatarButton}>
-                <MaterialIcons name="edit" size={16} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Input Fields */}
-            <View style={styles.inputsContainer}>
-              {/* Full Name Input */}
-              <View style={styles.inputField}>
-                <View style={styles.inputContainer}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Họ và tên"
-                    placeholderTextColor="#9CA3AF"
-                    value={fullName}
-                    onChangeText={handleFullNameChange}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    selectionColor="#1C64F2"
-                    underlineColorAndroid="transparent"
-                    editable={!isLoading}
-                    accessible
-                    accessibilityLabel="Nhập họ và tên"
-                  />
-                </View>
-              </View>
-
-              {/* Nickname Input */}
-              <View style={styles.inputField}>
-                <View style={styles.inputContainer}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Biệt danh"
-                    placeholderTextColor="#9CA3AF"
-                    value={nickname}
-                    onChangeText={handleNicknameChange}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    selectionColor="#1C64F2"
-                    underlineColorAndroid="transparent"
-                    editable={!isLoading}
-                    accessible
-                    accessibilityLabel="Nhập biệt danh"
-                  />
-                </View>
-              </View>
-
-              {/* Email Input */}
-              <View style={styles.inputField}>
-                <View style={styles.inputContainer}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Email"
-                    placeholderTextColor="#9CA3AF"
-                    value={email}
-                    onChangeText={handleEmailChange}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    selectionColor="#1C64F2"
-                    underlineColorAndroid="transparent"
-                    editable={!isLoading}
-                    accessible
-                    accessibilityLabel="Nhập email"
-                  />
-                </View>
-              </View>
-
-              {/* Date of Birth Input */}
-              <View style={styles.inputField}>
-                <View style={styles.inputContainer}>
-                  <MaterialIcons name="calendar-today" size={18} color="#9CA3AF" />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Ngày sinh"
-                    placeholderTextColor="#9CA3AF"
-                    value={dateOfBirth}
-                    onChangeText={handleDateOfBirthChange}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    selectionColor="#1C64F2"
-                    underlineColorAndroid="transparent"
-                    editable={!isLoading}
-                    accessible
-                    accessibilityLabel="Nhập ngày sinh"
-                  />
-                </View>
-              </View>
-
-              {/* Gender Input */}
-              <View style={styles.inputField}>
-                <View style={styles.inputContainer}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Giới tính"
-                    placeholderTextColor="#9CA3AF"
-                    value={gender}
-                    onChangeText={handleGenderChange}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    selectionColor="#1C64F2"
-                    underlineColorAndroid="transparent"
-                    editable={!isLoading}
-                    accessible
-                    accessibilityLabel="Nhập giới tính"
-                  />
-                  <MaterialIcons name="keyboard-arrow-down" size={18} color="#9CA3AF" />
-                </View>
-              </View>
-            </View>
-
-            {/* Save Button */}
-            <TouchableOpacity
-              style={[
-                styles.saveButton,
-                (!isFormValid || isLoading) && styles.saveButtonDisabled
-              ]}
-              onPress={handleSaveProfile}
-              disabled={!isFormValid || isLoading}
-              accessible
-              accessibilityLabel="Lưu hồ sơ"
-            >
-              <Text style={[
-                styles.saveButtonText,
-                (!isFormValid || isLoading) && styles.saveButtonTextDisabled
-              ]}>
-                {isLoading ? 'Đang lưu...' : 'Lưu'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Test Button - Skip to Main App */}
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={() => {
-                console.log('Test: Skip to main app');
-                if (isFunction(onProfileComplete)) {
-                  onProfileComplete();
-                }
-              }}
-            >
-              <Text style={styles.testButtonText}>Test: Bỏ qua → Main App</Text>
-            </TouchableOpacity>
+            )}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <TouchableOpacity onPress={handleChangeAvatar} style={styles.changeAvatarButton}>
+            <Text style={styles.changeAvatarText}>Thay đổi ảnh đại diện</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Success Modal */}
-      <Modal
-        visible={showSuccessModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSuccessModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.successIcon}>
-              <MaterialIcons name="check" size={48} color="#FFFFFF" />
-            </View>
-            <View style={styles.modalTextContainer}>
-              <Text style={styles.modalTitle}>Hoàn thành!</Text>
-              <Text style={styles.modalDescription}>
-                Hồ sơ của bạn đã được tạo thành công. Chào mừng bạn đến với HealthPal!
-              </Text>
-            </View>
-            <View style={styles.loadingSpinner}>
-              <MaterialIcons name="hourglass-empty" size={24} color="#1F2A37" />
-            </View>
+        {/* Basic Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Họ *</Text>
+            <TextInput
+              style={styles.input}
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="Nhập họ"
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Tên *</Text>
+            <TextInput
+              style={styles.input}
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Nhập tên"
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Số điện thoại</Text>
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Nhập số điện thoại"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Ngày sinh</Text>
+            <TextInput
+              style={styles.input}
+              value={dateOfBirth}
+              onChangeText={setDateOfBirth}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Địa chỉ</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={address}
+              onChangeText={setAddress}
+              placeholder="Nhập địa chỉ"
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={3}
+            />
           </View>
         </View>
-      </Modal>
+        {/* Patient-specific Information */}
+        {userProfile?.role === 'PATIENT' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Thông tin y tế</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nhóm máu</Text>
+              <TextInput
+                style={styles.input}
+                value={bloodType}
+                onChangeText={setBloodType}
+                placeholder="Ví dụ: A+, B-, O+, AB-"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Dị ứng</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={allergies}
+                onChangeText={setAllergies}
+                placeholder="Mô tả các loại dị ứng (nếu có)"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Liên hệ khẩn cấp</Text>
+              <TextInput
+                style={styles.input}
+                value={emergencyContact}
+                onChangeText={setEmergencyContact}
+                placeholder="Số điện thoại liên hệ khẩn cấp"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Số bảo hiểm</Text>
+              <TextInput
+                style={styles.input}
+                value={insuranceNumber}
+                onChangeText={setInsuranceNumber}
+                placeholder="Nhập số bảo hiểm y tế"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Bottom spacing */}
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -339,203 +409,145 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  keyboardContainer: {
+  loadingContainer: {
     flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-
-  // Back Button
-  backButton: {
-    position: 'absolute',
-    top: 10,
-    left: 24,
-    zIndex: 10,
-    width: 24,
-    height: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // Title
-  titleContainer: {
-    paddingTop: 16,
-    paddingLeft: 24,
-    paddingBottom: 16,
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#6B7280',
   },
-  title: {
-    fontFamily: 'Inter',
-    fontWeight: '600',
-    fontSize: 20,
-    lineHeight: 30,
-    color: '#374151',
-    marginLeft: 38, // Account for back button space
-  },
-
-  // Content Container
-  contentContainer: {
-    paddingHorizontal: 24,
-    gap: 32,
-    flex: 1,
-    paddingBottom: 40,
-  },
-
-  // Avatar
-  avatarContainer: {
-    alignItems: 'center',
-    position: 'relative',
-    marginBottom: 8,
-  },
-  avatarPlaceholder: {
-    width: 202,
-    height: 202,
-    borderRadius: 101,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  editAvatarButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 70,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#1C2A3A',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Input Fields
-  inputsContainer: {
-    gap: 20,
-    width: '100%',
-  },
-  inputField: {
-    gap: 8,
-    width: '100%',
-  },
-  inputContainer: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    minHeight: 48,
-  },
-  input: {
-    flex: 1,
-    fontFamily: 'Inter',
-    fontWeight: '400',
-    fontSize: 14,
-    lineHeight: 21,
-    color: '#1C2A3A',
-    paddingVertical: 0,
-    includeFontPadding: false,
-  },
-
-  // Save Button
-  saveButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 12,
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    backgroundColor: '#1C2A3A',
-    borderRadius: 55,
-    height: 48,
-    width: '100%',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: 'center',
   },
   saveButtonDisabled: {
     backgroundColor: '#9CA3AF',
   },
   saveButtonText: {
-    fontFamily: 'Inter',
-    fontWeight: '500',
-    fontSize: 16,
-    lineHeight: 24,
     color: '#FFFFFF',
-  },
-  saveButtonTextDisabled: {
-    color: '#FFFFFF',
-    opacity: 0.7,
-  },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    width: 337,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 48,
-    paddingVertical: 32,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    gap: 32,
-  },
-  successIcon: {
-    width: 131,
-    height: 131,
-    borderRadius: 65.5,
-    backgroundColor: '#A4CFC3',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalTextContainer: {
-    alignItems: 'center',
-    gap: 8,
-    width: 252,
-  },
-  modalTitle: {
-    fontFamily: 'Inter',
+    fontSize: 14,
     fontWeight: '600',
-    fontSize: 20,
-    lineHeight: 30,
-    color: '#1C2A3A',
-    textAlign: 'center',
   },
-  modalDescription: {
-    fontFamily: 'Inter',
-    fontWeight: '400',
+  content: {
+    flex: 1,
+  },
+  errorContainer: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorText: {
+    color: '#DC2626',
     fontSize: 14,
-    lineHeight: 21,
-    color: '#6B7280',
-    textAlign: 'center',
+    marginBottom: 10,
   },
-  loadingSpinner: {
-    width: 57,
-    height: 57,
-    justifyContent: 'center',
-    alignItems: 'center',
+  retryButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: '#DC2626',
+    borderRadius: 6,
+  },
+  retryText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 
-  // Test Button
-  testButton: {
-    flexDirection: 'row',
+  avatarSection: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  avatarContainer: {
+    marginBottom: 15,
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  avatarPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: '#10B981',
-    borderRadius: 8,
-    height: 48,
-    width: '100%',
-    marginTop: 16,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
   },
-  testButtonText: {
-    fontFamily: 'Inter',
+  changeAvatarButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  changeAvatarText: {
+    color: '#007AFF',
+    fontSize: 16,
     fontWeight: '500',
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
     fontSize: 14,
-    lineHeight: 21,
-    color: '#FFFFFF',
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1F2937',
+    backgroundColor: '#FFFFFF',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  bottomSpacing: {
+    height: 50,
   },
 });
+
