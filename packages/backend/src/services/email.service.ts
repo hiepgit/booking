@@ -19,7 +19,7 @@ export class EmailService {
    */
   static async initialize() {
     try {
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         host: env.SMTP_HOST,
         port: env.SMTP_PORT,
         secure: env.SMTP_PORT === 465, // true for 465, false for other ports
@@ -30,7 +30,9 @@ export class EmailService {
       });
 
       // Verify connection configuration
-      await this.transporter.verify();
+      if (this.transporter) {
+        await this.transporter.verify();
+      }
       console.log('✅ Email service initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize email service:', error);
