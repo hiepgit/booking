@@ -10,10 +10,12 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView
+  SafeAreaView,
+  Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { HealthPalLogo, EmailIcon, LockIcon, GoogleIcon, FacebookIcon } from '../components';
+import { signInWithGoogle, signInWithFacebook } from '../services/socialAuth.service';
 
 type SignInScreenProps = {
   onSignIn?: () => void;
