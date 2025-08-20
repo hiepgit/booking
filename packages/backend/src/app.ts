@@ -15,6 +15,7 @@ import specialtiesRouter from './routes/specialties.js';
 import reviewsRouter from './routes/reviews.js';
 import clinicsRouter from './routes/clinics.js';
 import appointmentsRouter from './routes/appointments.js';
+import searchRouter from './routes/search.js';
 import { getAppVersion } from './libs/version.js';
 
 const env = loadEnv();
@@ -67,6 +68,7 @@ export function createServer() {
   app.use('/reviews', reviewsRouter);
   app.use('/clinics', clinicsRouter);
   app.use('/appointments', appointmentsRouter);
+  app.use('/search', searchRouter);
 
   // Root endpoint
   app.get('/', (_req, res) => {
