@@ -1,6 +1,7 @@
 import { prisma } from '../libs/prisma.js';
 import { UserRole } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { CacheService } from './cache.service.js';
 
 export interface DoctorRegistrationData {
   userId: string;
@@ -481,7 +482,12 @@ export class DoctorService {
    * Get available filters for doctor search
    */
   static async getSearchFilters() {
-    const [specialties, cities, feeRange] = await Promise.all([
+    const cacheKey = 'doctor:search:filters';
+
+    return await CacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const [specialties, cities, feeRange] = await Promise.all([
       // Get all specialties with doctor count
       prisma.specialty.findMany({
         select: {
@@ -514,19 +520,22 @@ export class DoctorService {
       })
     ]);
 
-    return {
-      specialties: specialties.map(s => ({
-        id: s.id,
-        name: s.name,
-        icon: s.icon,
-        count: s._count.doctors,
-      })),
-      cities,
-      feeRange: {
-        min: feeRange._min.consultationFee?.toNumber() || 0,
-        max: feeRange._max.consultationFee?.toNumber() || 0,
-      }
-    };
+        return {
+          specialties: specialties.map(s => ({
+            id: s.id,
+            name: s.name,
+            icon: s.icon,
+            count: s._count.doctors,
+          })),
+          cities,
+          feeRange: {
+            min: feeRange._min.consultationFee?.toNumber() || 0,
+            max: feeRange._max.consultationFee?.toNumber() || 0,
+          }
+        };
+      },
+      600 // Cache for 10 minutes
+    );
   }
 
   /**
