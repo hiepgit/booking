@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "HealthPal",
+    "slug": "healthpal",
     "entryPoint": "./index.ts",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,9 +14,20 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "permissions": [
+      "CAMERA",
+      "CAMERA_ROLL",
+      "ACCESS_FINE_LOCATION",
+      "ACCESS_COARSE_LOCATION"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.healthpal.mobile"
+      "bundleIdentifier": "com.healthpal.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs location access to find nearby clinics.",
+        "NSCameraUsageDescription": "This app needs camera access to take profile photos.",
+        "NSPhotoLibraryUsageDescription": "This app needs photo library access to select profile photos."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,11 +35,22 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.healthpal.mobile"
+      "package": "com.healthpal.mobile",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [
+      "expo-location",
+      "expo-image-picker",
+      "expo-secure-store"
+    ]
   }
 }
