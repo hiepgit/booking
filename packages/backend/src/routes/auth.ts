@@ -108,9 +108,53 @@ router.post('/register', authRateLimit, async (req, res, next) => {
     const otp = await createOtp(user.email, 'REGISTER');
     await sendOtpEmail(user.email, otp, firstName);
 
+    // Get user with role-specific data for response
+    const userWithProfile = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isVerified: true,
+        avatar: true,
+        patient: {
+          select: {
+            id: true,
+            bloodType: true,
+            allergies: true,
+            emergencyContact: true,
+            insuranceNumber: true,
+          }
+        },
+        doctor: {
+          select: {
+            id: true,
+            licenseNumber: true,
+            specialtyId: true,
+            experience: true,
+            biography: true,
+            consultationFee: true,
+            averageRating: true,
+            totalReviews: true,
+            isAvailable: true,
+            specialty: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                icon: true,
+              }
+            }
+          }
+        }
+      }
+    });
+
     res.status(201).json({
       message: 'Registration successful. Please check your email for OTP verification.',
-      userId: user.id
+      user: userWithProfile
     });
   } catch (err) {
     next(err);
@@ -139,16 +183,53 @@ router.post('/verify-otp', otpRateLimit, async (req, res, next) => {
     // Send welcome email
     await sendWelcomeEmail(user.email, user.firstName);
     
-    res.json({ 
-      message: 'Email verified successfully',
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        isVerified: true
+    // Get user with role-specific data for response
+    const userWithProfile = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isVerified: true,
+        avatar: true,
+        patient: {
+          select: {
+            id: true,
+            bloodType: true,
+            allergies: true,
+            emergencyContact: true,
+            insuranceNumber: true,
+          }
+        },
+        doctor: {
+          select: {
+            id: true,
+            licenseNumber: true,
+            specialtyId: true,
+            experience: true,
+            biography: true,
+            consultationFee: true,
+            averageRating: true,
+            totalReviews: true,
+            isAvailable: true,
+            specialty: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                icon: true,
+              }
+            }
+          }
+        }
       }
+    });
+
+    res.json({
+      message: 'Email verified successfully',
+      user: userWithProfile
     });
   } catch (err) {
     next(err);
@@ -166,17 +247,18 @@ router.post('/verify-otp', otpRateLimit, async (req, res, next) => {
 router.post('/login', loginRateLimit, async (req, res, next) => {
   try {
     const body = LoginBody.parse(req.body);
-    const user = await prisma.user.findUnique({ 
-      where: { email: body.email }, 
-      select: { 
-        id: true, 
-        email: true, 
-        role: true, 
-        isVerified: true, 
+    const user = await prisma.user.findUnique({
+      where: { email: body.email },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isVerified: true,
         passwordHash: true,
         firstName: true,
-        lastName: true
-      } 
+        lastName: true,
+        avatar: true
+      }
     });
     
     if (!user) return res.status(401).json({ error: { message: 'Invalid credentials' } });
@@ -195,18 +277,55 @@ router.post('/login', loginRateLimit, async (req, res, next) => {
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
 
-    res.json({ 
-      message: 'Login successful',
-      accessToken, 
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        isVerified: user.isVerified
+    // Get user with role-specific data for response
+    const userWithProfile = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isVerified: true,
+        avatar: true,
+        patient: {
+          select: {
+            id: true,
+            bloodType: true,
+            allergies: true,
+            emergencyContact: true,
+            insuranceNumber: true,
+          }
+        },
+        doctor: {
+          select: {
+            id: true,
+            licenseNumber: true,
+            specialtyId: true,
+            experience: true,
+            biography: true,
+            consultationFee: true,
+            averageRating: true,
+            totalReviews: true,
+            isAvailable: true,
+            specialty: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                icon: true,
+              }
+            }
+          }
+        }
       }
+    });
+
+    res.json({
+      message: 'Login successful',
+      accessToken,
+      refreshToken,
+      user: userWithProfile
     });
   } catch (err) {
     next(err);
