@@ -172,6 +172,83 @@ router.get('/facebook/callback', async (req, res) => {
 
 /**
  * @openapi
+ * /auth/social-login:
+ *   post:
+ *     tags:
+ *       - Social Auth
+ *     summary: Mobile social login with user profile
+ *     description: Authenticate user with social provider profile data from mobile app
+ */
+router.post('/social-login', authRateLimit, async (req, res) => {
+  try {
+    const SocialLoginSchema = z.object({
+      provider: z.enum(['GOOGLE', 'FACEBOOK']),
+      profile: z.object({
+        id: z.string(),
+        email: z.string().email(),
+        name: z.string(),
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        picture: z.string().optional(),
+        provider: z.enum(['google', 'facebook'])
+      })
+    });
+
+    const body = SocialLoginSchema.parse(req.body);
+
+    // Convert mobile profile format to backend format
+    const profile = {
+      id: body.profile.id,
+      email: body.profile.email,
+      firstName: body.profile.firstName || body.profile.name.split(' ')[0] || '',
+      lastName: body.profile.lastName || body.profile.name.split(' ').slice(1).join(' ') || '',
+      avatar: body.profile.picture,
+      provider: body.provider
+    };
+
+    // Handle social login
+    const result = await handleSocialLogin(profile);
+
+    res.json({
+      message: 'Social login successful',
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        firstName: result.user.firstName,
+        lastName: result.user.lastName,
+        avatar: result.user.avatar,
+        role: result.user.role,
+        isVerified: result.user.isVerified,
+        patient: result.user.patient,
+        doctor: result.user.doctor
+      }
+    });
+  } catch (error: any) {
+    console.error('Social login error:', error);
+
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request data',
+          code: 'VALIDATION_ERROR',
+          details: error.errors
+        }
+      });
+    }
+
+    res.status(500).json({
+      error: {
+        message: 'Social login failed',
+        code: 'SOCIAL_LOGIN_FAILED'
+      }
+    });
+  }
+});
+
+/**
+ * @openapi
  * /auth/social/providers:
  *   get:
  *     tags:
@@ -195,10 +272,10 @@ router.get('/social/providers', (req, res) => {
       description: 'Sign in with Facebook'
     }
   ];
-  
-  res.json({ 
+
+  res.json({
     message: 'Available social login providers',
-    providers 
+    providers
   });
 });
 
