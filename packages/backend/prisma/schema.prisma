@@ -61,8 +61,41 @@ enum NotificationType {
   APPOINTMENT_REMINDER
   APPOINTMENT_CONFIRMED
   APPOINTMENT_CANCELLED
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_COMPLETED
   PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PAYMENT_REFUNDED
+  DOCTOR_AVAILABLE
+  DOCTOR_UNAVAILABLE
+  NEW_APPOINTMENT_REQUEST
+  SYSTEM_MAINTENANCE
+  SYSTEM_UPDATE
+  WELCOME
+  VERIFICATION_REMINDER
   GENERAL
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ReminderType {
+  APPOINTMENT_24H
+  APPOINTMENT_1H
+  APPOINTMENT_15M
+  PAYMENT_DUE
+  VERIFICATION_PENDING
 }
 
 enum MedicalRecordType {
@@ -96,11 +129,12 @@ model User {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  patient           Patient?
-  doctor            Doctor?
-  notifications     Notification[]
-  sentMessages      Message[] @relation("SentMessages")
-  receivedMessages  Message[] @relation("ReceivedMessages")
+  patient                  Patient?
+  doctor                   Doctor?
+  notifications            Notification[]
+  notificationPreferences  NotificationPreference[]
+  sentMessages             Message[] @relation("SentMessages")
+  receivedMessages         Message[] @relation("ReceivedMessages")
 
   @@map("users")
   @@index([email])
@@ -294,6 +328,7 @@ model Appointment {
   schedule        Schedule? @relation(fields: [scheduleId], references: [id])
   payment         Payment?
   medicalRecord   MedicalRecord?
+  notifications   Notification[]
 
   @@map("appointments")
   @@index([patientId])
@@ -408,21 +443,133 @@ model Notification {
   message   String
   data      Json?            // Additional data for the notification
 
-  // Status
-  isRead    Boolean          @default(false)
+  // Delivery settings
+  channels  NotificationChannel[] // Which channels to send through
+  priority  NotificationPriority @default(NORMAL)
+
+  // Scheduling
+  scheduledFor DateTime?      // When to send (for scheduled notifications)
+  sentAt       DateTime?      // When actually sent
+
+  // Status tracking
+  isRead       Boolean       @default(false)
+  isDelivered  Boolean       @default(false)
+  deliveryAttempts Int       @default(0)
+
+  // Related entities
+  appointmentId String?      // Related appointment if applicable
 
   // Timestamps
   createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now()) @updatedAt
 
   // Relations
-  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  logs         NotificationLog[]
 
   @@map("notifications")
   @@index([userId])
   @@index([type])
   @@index([isRead])
+  @@index([isDelivered])
+  @@index([priority])
+  @@index([scheduledFor])
   @@index([createdAt])
   @@index([userId, isRead])
+  @@index([userId, type])
+  @@index([appointmentId])
+}
+
+model NotificationPreference {
+  id     String @id @default(cuid())
+  userId String
+
+  // Notification type preferences
+  type     NotificationType
+  channels NotificationChannel[] // Preferred channels for this type
+  enabled  Boolean              @default(true)
+
+  // Reminder preferences
+  reminderTiming Int[]           // Minutes before appointment [1440, 60, 15] for 24h, 1h, 15m
+
+  // Quiet hours
+  quietHoursStart String?        // "22:00" format
+  quietHoursEnd   String?        // "08:00" format
+  timezone        String         @default("Asia/Ho_Chi_Minh")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@map("notification_preferences")
+  @@index([userId])
+  @@index([type])
+  @@index([enabled])
+}
+
+model NotificationTemplate {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  channel     NotificationChannel
+  language    String           @default("vi") // vi, en
+
+  // Template content
+  subject     String?          // For email/SMS
+  title       String           // For in-app notifications
+  body        String           // Template with placeholders
+  htmlBody    String?          // HTML version for emails
+
+  // Template variables info
+  variables   Json?            // Available variables and their descriptions
+
+  // Status
+  isActive    Boolean          @default(true)
+  version     Int              @default(1)
+
+  // Timestamps
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([type, channel, language])
+  @@map("notification_templates")
+  @@index([type])
+  @@index([channel])
+  @@index([isActive])
+  @@index([language])
+}
+
+model NotificationLog {
+  id             String              @id @default(cuid())
+  notificationId String
+
+  // Delivery details
+  channel        NotificationChannel
+  recipient      String              // Email, phone, or user ID
+  status         String              // sent, delivered, failed, bounced
+  errorMessage   String?
+
+  // External service details
+  externalId     String?             // ID from email/SMS service
+  deliveredAt    DateTime?
+  readAt         DateTime?           // For email open tracking
+
+  // Timestamps
+  createdAt      DateTime            @default(now())
+
+  // Relations
+  notification   Notification        @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@map("notification_logs")
+  @@index([notificationId])
+  @@index([channel])
+  @@index([status])
+  @@index([createdAt])
+  @@index([recipient])
 }
 
 model Message {
