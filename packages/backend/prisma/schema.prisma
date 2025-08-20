@@ -111,7 +111,7 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   phone        String?  @unique
-  passwordHash String   @map("password")
+  passwordHash String?  @map("password")
   role         UserRole @default(PATIENT)
   isActive     Boolean  @default(true)
   isVerified   Boolean  @default(false)
