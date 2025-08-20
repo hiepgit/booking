@@ -87,7 +87,11 @@ describe('Payment Integration Tests', () => {
     testAppointmentId = testAppointment.id;
 
     // Generate auth token
-    authToken = signAccessToken({ userId: testUserId, role: 'PATIENT' });
+    authToken = signAccessToken({
+      sub: testUserId as any,
+      email: 'test@example.com',
+      role: 'PATIENT'
+    });
   });
 
   afterEach(async () => {
@@ -308,7 +312,7 @@ describe('Payment Integration Tests', () => {
           processCallback: vi.fn().mockResolvedValue({
             success: true,
             payment: { id: 'payment-id', amount: 350000 },
-            appointment: { id: testAppointmentId },
+            appointment: { id: 'test-appointment-id' },
             message: 'Payment successful'
           })
         }
