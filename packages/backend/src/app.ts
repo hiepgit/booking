@@ -19,6 +19,7 @@ import appointmentsRouter from './routes/appointments.js';
 import searchRouter from './routes/search.js';
 import notificationsRouter from './routes/notifications.js';
 import performanceRouter from './routes/performance.js';
+import paymentsRouter from './routes/payments.js';
 import { getAppVersion } from './libs/version.js';
 import { CacheService } from './services/cache.service.js';
 import { PerformanceMonitor, cacheHitMiddleware } from './middleware/performance.middleware.js';
@@ -80,6 +81,7 @@ export function createServer() {
   app.use('/search', searchRouter);
   app.use('/notifications', notificationsRouter);
   app.use('/performance', performanceRouter);
+  app.use('/payments', paymentsRouter);
 
   // Root endpoint
   app.get('/', (_req, res) => {
