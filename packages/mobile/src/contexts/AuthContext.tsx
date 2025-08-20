@@ -1,17 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { clearTokens } from '../lib/apiClient';
+import { UserProfile } from '../services/me.service';
 
-// Types
-export interface AuthUser {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  isVerified: boolean;
-  avatar?: string;
-}
+// Use UserProfile from me.service for consistency
+export type AuthUser = UserProfile;
 
 export interface AuthContextType {
   // State
@@ -49,10 +42,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const accessToken = await SecureStore.getItemAsync('accessToken');
       
       if (accessToken) {
-        // TODO: Validate token with backend and get user info
-        // For now, just set authenticated if token exists
-        setIsAuthenticated(true);
-        console.log('✅ User already authenticated');
+        // Validate token with backend and get user info
+        try {
+          const { getUserProfile } = await import('../services/me.service');
+          const result = await getUserProfile();
+
+          if (result.success && result.data) {
+            setUser(result.data);
+            setIsAuthenticated(true);
+            console.log('✅ User authenticated with valid token');
+          } else {
+            // Token invalid, clear storage
+            await clearTokens();
+            setIsAuthenticated(false);
+            console.log('❌ Invalid token, user logged out');
+          }
+        } catch (serviceError) {
+          // If service fails, still set authenticated but without user data
+          // This allows app to work even if profile service is down
+          setIsAuthenticated(true);
+          console.log('⚠️ Token exists but profile service unavailable');
+        }
       } else {
         console.log('❌ No stored token found');
         setIsAuthenticated(false);
