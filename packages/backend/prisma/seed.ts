@@ -116,7 +116,7 @@ async function main() {
       create: {
         email: 'patient1@example.com',
         phone: '0900000001',
-        passwordHash: '$2a$10$RUM3qQk0tY9E8hGkQdKQOe3r1rX6gGx0s7y0QZ0T0d5U0uVb1d3fS',
+        passwordHash: '$2a$12$WT8dHDhqePr6uvnBXl1tduRcZMi0SUTAGvhf/3wnx12cpcTt6bBJm',
         role: UserRole.PATIENT,
         firstName: 'An',
         lastName: 'Nguyen',
@@ -141,7 +141,7 @@ async function main() {
       create: {
         email: 'patient2@example.com',
         phone: '0900000002',
-        passwordHash: '$2a$10$RUM3qQk0tY9E8hGkQdKQOe3r1rX6gGx0s7y0QZ0T0d5U0uVb1d3fS',
+        passwordHash: '$2a$12$WT8dHDhqePr6uvnBXl1tduRcZMi0SUTAGvhf/3wnx12cpcTt6bBJm',
         role: UserRole.PATIENT,
         firstName: 'Mai',
         lastName: 'Tran',
@@ -166,7 +166,7 @@ async function main() {
       create: {
         email: 'patient3@example.com',
         phone: '0900000003',
-        passwordHash: '$2a$10$RUM3qQk0tY9E8hGkQdKQOe3r1rX6gGx0s7y0QZ0T0d5U0uVb1d3fS',
+        passwordHash: '$2a$12$WT8dHDhqePr6uvnBXl1tduRcZMi0SUTAGvhf/3wnx12cpcTt6bBJm',
         role: UserRole.PATIENT,
         firstName: 'Hai',
         lastName: 'Le',
@@ -196,7 +196,7 @@ async function main() {
       create: {
         email: 'doctor1@example.com',
         phone: '0900000004',
-        passwordHash: '$2a$10$RUM3qQk0tY9E8hGkQdKQOe3r1rX6gGx0s7y0QZ0T0d5U0uVb1d3fS',
+        passwordHash: '$2a$12$WT8dHDhqePr6uvnBXl1tduRcZMi0SUTAGvhf/3wnx12cpcTt6bBJm',
         role: UserRole.DOCTOR,
         firstName: 'Binh',
         lastName: 'Tran',
@@ -223,7 +223,7 @@ async function main() {
       create: {
         email: 'doctor2@example.com',
         phone: '0900000005',
-        passwordHash: '$2a$10$RUM3qQk0tY9E8hGkQdKQOe3r1rX6gGx0s7y0QZ0T0d5U0uVb1d3fS',
+        passwordHash: '$2a$12$WT8dHDhqePr6uvnBXl1tduRcZMi0SUTAGvhf/3wnx12cpcTt6bBJm',
         role: UserRole.DOCTOR,
         firstName: 'Cuong',
         lastName: 'Pham',
@@ -250,7 +250,7 @@ async function main() {
       create: {
         email: 'doctor3@example.com',
         phone: '0900000006',
-        passwordHash: '$2a$10$RUM3qQk0tY9E8hGkQdKQOe3r1rX6gGx0s7y0QZ0T0d5U0uVb1d3fS',
+        passwordHash: '$2a$12$WT8dHDhqePr6uvnBXl1tduRcZMi0SUTAGvhf/3wnx12cpcTt6bBJm',
         role: UserRole.DOCTOR,
         firstName: 'Lan',
         lastName: 'Hoang',
@@ -281,7 +281,7 @@ async function main() {
     create: {
       email: 'admin@healthcare.com',
       phone: '0900000000',
-      passwordHash: '$2a$10$RUM3qQk0tY9E8hGkQdKQOe3r1rX6gGx0s7y0QZ0T0d5U0uVb1d3fS',
+      passwordHash: '$2a$12$WT8dHDhqePr6uvnBXl1tduRcZMi0SUTAGvhf/3wnx12cpcTt6bBJm',
       role: UserRole.ADMIN,
       firstName: 'Admin',
       lastName: 'System',
