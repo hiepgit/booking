@@ -115,16 +115,16 @@ export class AnalyticsService {
       const noResultsQueries = new Set<string>();
       
       for (const key of keys) {
-        const searches = await CacheService.get(`${key}:total_searches`) || 0;
+        const searches = Number(await CacheService.get(`${key}:total_searches`) || 0);
         totalSearches += searches;
-        
-        const searchTime = await CacheService.get(`${key}:total_search_time`) || 0;
+
+        const searchTime = Number(await CacheService.get(`${key}:total_search_time`) || 0);
         totalSearchTime += searchTime;
-        
-        const searchCount = await CacheService.get(`${key}:search_time_count`) || 0;
+
+        const searchCount = Number(await CacheService.get(`${key}:search_time_count`) || 0);
         searchTimeCount += searchCount;
-        
-        const results = await CacheService.get(`${key}:total_results`) || 0;
+
+        const results = Number(await CacheService.get(`${key}:total_results`) || 0);
         totalResults += results;
         
         // Get unique users
@@ -133,10 +133,10 @@ export class AnalyticsService {
         
         // Get searches by type
         for (const type of ['doctors', 'clinics', 'all']) {
-          const count = await CacheService.get(`${key}:searches:${type}`) || 0;
+          const count = Number(await CacheService.get(`${key}:searches:${type}`) || 0);
           searchesByType[type] = (searchesByType[type] || 0) + count;
         }
-        
+
         // Get searches by hour
         const hour = key.split(':')[2];
         searchesByHour[hour] = searches;
