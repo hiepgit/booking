@@ -282,6 +282,63 @@ router.get('/nearby', requireAuth, ClinicController.searchNearbyClinics);
 
 /**
  * @swagger
+ * /api/clinics/search/filters:
+ *   get:
+ *     summary: Get available search filters for clinics
+ *     tags: [Clinics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Available search filters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     specialties:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           icon:
+ *                             type: string
+ *                           count:
+ *                             type: integer
+ *                     cities:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           city:
+ *                             type: string
+ *                           count:
+ *                             type: integer
+ *                     operatingHours:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           openTime:
+ *                             type: string
+ *                           closeTime:
+ *                             type: string
+ *                           count:
+ *                             type: integer
+ */
+router.get('/search/filters', requireAuth, ClinicController.getSearchFilters);
+
+/**
+ * @swagger
  * /api/clinics/search:
  *   get:
  *     summary: Search clinics by text and location
@@ -304,6 +361,56 @@ router.get('/nearby', requireAuth, ClinicController.searchNearbyClinics);
  *         schema:
  *           type: string
  *         description: Clinic name to search for
+ *       - in: query
+ *         name: specialtyIds
+ *         schema:
+ *           type: string
+ *         description: Comma-separated specialty IDs to filter by services
+ *       - in: query
+ *         name: openNow
+ *         schema:
+ *           type: boolean
+ *         description: Filter by clinics currently open
+ *       - in: query
+ *         name: operatingDay
+ *         schema:
+ *           type: string
+ *           enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
+ *         description: Filter by operating day
+ *       - in: query
+ *         name: operatingTime
+ *         schema:
+ *           type: string
+ *           pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+ *         description: Filter by operating time (HH:mm format)
+ *       - in: query
+ *         name: minRating
+ *         schema:
+ *           type: number
+ *           minimum: 0
+ *           maximum: 5
+ *         description: Minimum rating filter
+ *       - in: query
+ *         name: maxRating
+ *         schema:
+ *           type: number
+ *           minimum: 0
+ *           maximum: 5
+ *         description: Maximum rating filter
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [name, rating, distance, relevance]
+ *           default: relevance
+ *         description: Sort results by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
  *       - in: query
  *         name: page
  *         schema:

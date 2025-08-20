@@ -1,5 +1,6 @@
 import { PrismaClient, Clinic, ClinicDoctor } from '@prisma/client';
 import { z } from 'zod';
+import { CacheService } from './cache.service.js';
 
 const prisma = new PrismaClient();
 
@@ -31,6 +32,14 @@ export const clinicSearchSchema = z.object({
   city: z.string().optional(),
   district: z.string().optional(),
   name: z.string().optional(),
+  specialtyIds: z.array(z.string()).optional(), // Filter by services/specialties
+  openNow: z.boolean().optional(), // Filter by currently open clinics
+  operatingDay: z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']).optional(),
+  operatingTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(), // HH:mm format
+  minRating: z.number().min(0).max(5).optional(),
+  maxRating: z.number().min(0).max(5).optional(),
+  sortBy: z.enum(['name', 'rating', 'distance', 'relevance']).default('relevance'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(50).default(10),
 });
@@ -234,45 +243,137 @@ export class ClinicService {
     };
   }
 
-  // Search clinics by text and location
+  // Search clinics by text and location with enhanced filters
   static async searchClinics(query: ClinicSearchQuery) {
-    const { city, district, name, page, limit } = clinicSearchSchema.parse(query);
-    const offset = (page - 1) * limit;
+    const {
+      city,
+      district,
+      name,
+      specialtyIds,
+      openNow,
+      operatingDay,
+      operatingTime,
+      minRating,
+      maxRating,
+      sortBy,
+      sortOrder,
+      page,
+      limit
+    } = clinicSearchSchema.parse(query);
 
+    const offset = (page - 1) * limit;
     const where: any = {};
 
+    // Text search
     if (name) {
-      where.name = {
-        contains: name,
-        mode: 'insensitive',
-      };
+      where.OR = [
+        { name: { contains: name, mode: 'insensitive' } },
+        { description: { contains: name, mode: 'insensitive' } }
+      ];
     }
 
+    // Location filters
     if (city || district) {
       const addressFilters = [];
       if (city) addressFilters.push(city);
       if (district) addressFilters.push(district);
-      
+
       where.address = {
         contains: addressFilters.join(' '),
         mode: 'insensitive',
       };
     }
 
+    // Services/Specialties filter
+    if (specialtyIds && specialtyIds.length > 0) {
+      where.clinicDoctors = {
+        some: {
+          doctor: {
+            specialtyId: {
+              in: specialtyIds
+            }
+          }
+        }
+      };
+    }
+
+    // Operating hours filters
+    if (openNow) {
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+      where.AND = [
+        { openTime: { lte: currentTime } },
+        { closeTime: { gte: currentTime } }
+      ];
+    }
+
+    if (operatingTime) {
+      where.AND = [
+        ...(where.AND || []),
+        { openTime: { lte: operatingTime } },
+        { closeTime: { gte: operatingTime } }
+      ];
+    }
+
+    // Build orderBy clause
+    let orderBy: any = { name: 'asc' };
+    if (sortBy === 'name') {
+      orderBy = { name: sortOrder };
+    } else if (sortBy === 'rating') {
+      // We'll sort by average rating of doctors in the clinic
+      orderBy = { createdAt: 'desc' }; // Fallback, will be handled in post-processing
+    }
+
     const [clinics, total] = await Promise.all([
       prisma.clinic.findMany({
         where,
+        include: {
+          clinicDoctors: {
+            include: {
+              doctor: {
+                include: {
+                  specialty: true,
+                  reviews: true,
+                },
+              },
+            },
+          },
+        },
         skip: offset,
         take: limit,
-        orderBy: { name: 'asc' },
+        orderBy,
       }),
       prisma.clinic.count({ where }),
     ]);
 
-    // Enhance clinics with additional data
-    const enhancedClinics = await Promise.all(
-      clinics.map(clinic => this.getClinicById(clinic.id))
+    // Enhance clinics with additional data and apply rating filters
+    let enhancedClinics = await Promise.all(
+      clinics.map(async (clinic) => {
+        const clinicWithDetails = await this.getClinicById(clinic.id);
+        return clinicWithDetails;
+      })
     );
+
+    // Filter by rating if specified
+    if (minRating !== undefined || maxRating !== undefined) {
+      enhancedClinics = enhancedClinics.filter(clinic => {
+        if (!clinic) return false;
+        const rating = clinic.rating || 0;
+        if (minRating !== undefined && rating < minRating) return false;
+        if (maxRating !== undefined && rating > maxRating) return false;
+        return true;
+      });
+    }
+
+    // Sort by rating if requested
+    if (sortBy === 'rating') {
+      enhancedClinics.sort((a, b) => {
+        const ratingA = a?.rating || 0;
+        const ratingB = b?.rating || 0;
+        return sortOrder === 'desc' ? ratingB - ratingA : ratingA - ratingB;
+      });
+    }
 
     return {
       data: enhancedClinics.filter(Boolean),
@@ -283,6 +384,89 @@ export class ClinicService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  // Get available filters for clinic search
+  static async getSearchFilters() {
+    const cacheKey = 'clinic:search:filters';
+
+    return await CacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const [specialties, cities, operatingHours] = await Promise.all([
+      // Get all specialties available in clinics
+      prisma.specialty.findMany({
+        where: {
+          doctors: {
+            some: {
+              clinicDoctors: {
+                some: {}
+              }
+            }
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          icon: true,
+          _count: {
+            select: {
+              doctors: {
+                where: {
+                  clinicDoctors: {
+                    some: {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        orderBy: { name: 'asc' }
+      }),
+
+      // Get unique cities from clinic addresses
+      prisma.$queryRaw`
+        SELECT DISTINCT
+          TRIM(SPLIT_PART(address, ',', -1)) as city,
+          COUNT(*)::int as count
+        FROM "clinics"
+        GROUP BY city
+        ORDER BY count DESC, city ASC
+        LIMIT 20
+      `,
+
+      // Get common operating hours
+      prisma.clinic.groupBy({
+        by: ['openTime', 'closeTime'],
+        _count: {
+          id: true
+        },
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        },
+        take: 10
+      })
+    ]);
+
+        return {
+          specialties: specialties.map(specialty => ({
+            id: specialty.id,
+            name: specialty.name,
+            icon: specialty.icon,
+            count: specialty._count.doctors
+          })),
+          cities: cities as Array<{ city: string; count: number }>,
+          operatingHours: operatingHours.map(hours => ({
+            openTime: hours.openTime,
+            closeTime: hours.closeTime,
+            count: hours._count.id
+          }))
+        };
+      },
+      600 // Cache for 10 minutes
+    );
   }
 
   // Get all clinics with pagination

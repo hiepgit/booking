@@ -29,6 +29,14 @@ const searchQuerySchema = z.object({
   city: z.string().optional(),
   district: z.string().optional(),
   name: z.string().optional(),
+  specialtyIds: z.string().optional().transform(val => val ? val.split(',') : undefined),
+  openNow: z.string().optional().transform(val => val === 'true'),
+  operatingDay: z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']).optional(),
+  operatingTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
+  minRating: z.string().optional().transform(val => val ? parseFloat(val) : undefined),
+  maxRating: z.string().optional().transform(val => val ? parseFloat(val) : undefined),
+  sortBy: z.enum(['name', 'rating', 'distance', 'relevance']).default('relevance'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
   page: z.string().optional().transform(val => val ? parseInt(val, 10) : 1),
   limit: z.string().optional().transform(val => val ? parseInt(val, 10) : 10),
 });
@@ -282,6 +290,27 @@ export class ClinicController {
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to search clinics',
+        },
+      });
+    }
+  }
+
+  // Get clinic search filters
+  static async getSearchFilters(req: Request, res: Response) {
+    try {
+      const filters = await ClinicService.getSearchFilters();
+
+      res.json({
+        success: true,
+        data: filters
+      });
+    } catch (error: any) {
+      console.error('Get clinic search filters error:', error);
+
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to get search filters',
         },
       });
     }
