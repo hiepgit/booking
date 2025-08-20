@@ -1,0 +1,1100 @@
+import { prisma } from '../libs/prisma.js';
+import { Decimal } from '@prisma/client/runtime/library';
+
+export interface AdvancedDoctorSearchFilters {
+  // Text search
+  q?: string; // Search query for name, specialty, biography
+  symptoms?: string; // Search by symptoms/conditions
+  
+  // Basic filters
+  specialtyId?: string;
+  experienceLevel?: 'junior' | 'mid' | 'senior'; // 0-5, 5-10, 10+ years
+  minRating?: number;
+  maxRating?: number;
+  available?: boolean;
+  
+  // Price filters
+  minFee?: number;
+  maxFee?: number;
+  priceRange?: 'budget' | 'mid' | 'premium'; // Predefined ranges
+  
+  // Location filters
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  radius?: number; // in kilometers
+  
+  // Advanced filters
+  languages?: string[]; // Spoken languages
+  gender?: 'MALE' | 'FEMALE';
+  hasOnlineConsultation?: boolean;
+  
+  // Pagination and sorting
+  page?: number;
+  limit?: number;
+  sortBy?: 'relevance' | 'rating' | 'experience' | 'fee' | 'distance' | 'availability';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface AdvancedClinicSearchFilters {
+  // Text search
+  q?: string; // Search query for name, address, services
+  services?: string[]; // Available services
+  
+  // Location filters
+  city?: string;
+  district?: string;
+  latitude?: number;
+  longitude?: number;
+  radius?: number; // in kilometers
+  
+  // Operating hours
+  openNow?: boolean;
+  operatingHours?: {
+    day: string;
+    time: string;
+  };
+  
+  // Accessibility and amenities
+  hasParking?: boolean;
+  isAccessible?: boolean;
+  hasEmergency?: boolean;
+  
+  // Pagination and sorting
+  page?: number;
+  limit?: number;
+  sortBy?: 'relevance' | 'distance' | 'rating' | 'name';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface SearchAnalytics {
+  query: string;
+  filters: any;
+  resultCount: number;
+  searchTime: number;
+  userId?: string;
+  timestamp: Date;
+}
+
+export class SearchService {
+  /**
+   * Advanced doctor search with full-text search and relevance scoring
+   */
+  static async searchDoctorsAdvanced(filters: AdvancedDoctorSearchFilters) {
+    const startTime = Date.now();
+    
+    const {
+      q,
+      symptoms,
+      specialtyId,
+      experienceLevel,
+      minRating = 0,
+      maxRating = 5,
+      available,
+      minFee,
+      maxFee,
+      priceRange,
+      city,
+      latitude,
+      longitude,
+      radius,
+      languages,
+      gender,
+      hasOnlineConsultation,
+      page = 1,
+      limit = 10,
+      sortBy = 'relevance',
+      sortOrder = 'desc'
+    } = filters;
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {
+      isAvailable: available !== undefined ? available : undefined,
+      averageRating: {
+        gte: minRating,
+        lte: maxRating
+      }
+    };
+
+    // Experience level mapping
+    if (experienceLevel) {
+      const experienceMap = {
+        junior: { gte: 0, lt: 5 },
+        mid: { gte: 5, lt: 10 },
+        senior: { gte: 10 }
+      };
+      where.experience = experienceMap[experienceLevel];
+    }
+
+    // Price filtering
+    if (priceRange) {
+      const priceRanges = {
+        budget: { lte: new Decimal(300000) }, // <= 300k VND
+        mid: { gte: new Decimal(300000), lte: new Decimal(600000) }, // 300k-600k VND
+        premium: { gte: new Decimal(600000) } // >= 600k VND
+      };
+      where.consultationFee = priceRanges[priceRange];
+    } else {
+      where.consultationFee = {
+        ...(minFee ? { gte: new Decimal(minFee) } : {}),
+        ...(maxFee ? { lte: new Decimal(maxFee) } : {}),
+      };
+    }
+
+    // Specialty filter
+    if (specialtyId) {
+      where.specialtyId = specialtyId;
+    }
+
+    // Gender filter
+    if (gender) {
+      where.user = {
+        ...where.user,
+        gender: gender
+      };
+    }
+
+    // Full-text search
+    if (q) {
+      where.OR = [
+        // Search in user name
+        {
+          user: {
+            OR: [
+              { firstName: { contains: q, mode: 'insensitive' } },
+              { lastName: { contains: q, mode: 'insensitive' } },
+            ]
+          }
+        },
+        // Search in biography
+        { biography: { contains: q, mode: 'insensitive' } },
+        // Search in specialty name
+        {
+          specialty: {
+            name: { contains: q, mode: 'insensitive' }
+          }
+        }
+      ];
+    }
+
+    // Symptoms-based search (map to specialties)
+    if (symptoms) {
+      const symptomSpecialtyMap = await this.getSymptomSpecialtyMapping(symptoms);
+      if (symptomSpecialtyMap.length > 0) {
+        where.specialtyId = {
+          in: symptomSpecialtyMap
+        };
+      }
+    }
+
+    // City filter (search in clinic addresses)
+    if (city) {
+      where.clinicDoctors = {
+        some: {
+          clinic: {
+            address: { contains: city, mode: 'insensitive' }
+          }
+        }
+      };
+    }
+
+    // Clean up undefined values
+    Object.keys(where).forEach(key => {
+      if (where[key] === undefined) {
+        delete where[key];
+      }
+    });
+
+    // Build order by clause
+    let orderBy: any = {};
+    switch (sortBy) {
+      case 'rating':
+        orderBy = { averageRating: sortOrder };
+        break;
+      case 'experience':
+        orderBy = { experience: sortOrder };
+        break;
+      case 'fee':
+        orderBy = { consultationFee: sortOrder };
+        break;
+      case 'availability':
+        orderBy = { isAvailable: sortOrder };
+        break;
+      case 'relevance':
+      default:
+        // For relevance, we'll use a combination of rating and review count
+        orderBy = [
+          { averageRating: 'desc' },
+          { totalReviews: 'desc' },
+          { experience: 'desc' }
+        ];
+        break;
+    }
+
+    const [doctors, total] = await Promise.all([
+      prisma.doctor.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+              gender: true,
+              address: true,
+            }
+          },
+          specialty: {
+            select: {
+              id: true,
+              name: true,
+              icon: true,
+              description: true,
+            }
+          },
+          clinicDoctors: {
+            include: {
+              clinic: {
+                select: {
+                  id: true,
+                  name: true,
+                  address: true,
+                  latitude: true,
+                  longitude: true,
+                  openTime: true,
+                  closeTime: true,
+                }
+              }
+            }
+          }
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.doctor.count({ where }),
+    ]);
+
+    // Calculate distances if location provided
+    let doctorsWithDistance = doctors;
+    if (latitude && longitude) {
+      doctorsWithDistance = doctors.map(doctor => ({
+        ...doctor,
+        clinicDoctors: doctor.clinicDoctors.map(cd => ({
+          ...cd,
+          clinic: {
+            ...cd.clinic,
+            distance: this.calculateDistance(
+              latitude,
+              longitude,
+              cd.clinic.latitude,
+              cd.clinic.longitude
+            )
+          }
+        }))
+      }));
+
+      // Filter by radius if specified
+      if (radius) {
+        doctorsWithDistance = doctorsWithDistance.filter(doctor =>
+          doctor.clinicDoctors.some(cd => cd.clinic.distance <= radius)
+        );
+      }
+
+      // Sort by distance if requested
+      if (sortBy === 'distance') {
+        doctorsWithDistance.sort((a, b) => {
+          const distanceA = Math.min(...a.clinicDoctors.map(cd => cd.clinic.distance));
+          const distanceB = Math.min(...b.clinicDoctors.map(cd => cd.clinic.distance));
+          return sortOrder === 'asc' ? distanceA - distanceB : distanceB - distanceA;
+        });
+      }
+    }
+
+    const searchTime = Date.now() - startTime;
+
+    // Log search analytics
+    await this.logSearchAnalytics({
+      query: q || symptoms || '',
+      filters,
+      resultCount: total,
+      searchTime,
+      timestamp: new Date()
+    });
+
+    return {
+      data: doctorsWithDistance,
+      pagination: {
+        page,
+        limit,
+        total: doctorsWithDistance.length,
+        totalPages: Math.ceil(doctorsWithDistance.length / limit),
+      },
+      meta: {
+        searchTime,
+        hasLocationFilter: !!(latitude && longitude),
+        appliedFilters: this.getAppliedFilters(filters)
+      }
+    };
+  }
+
+  /**
+   * Calculate distance between two coordinates using Haversine formula
+   */
+  static calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = this.toRadians(lat2 - lat1);
+    const dLon = this.toRadians(lon2 - lon1);
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  static toRadians(degrees: number): number {
+    return degrees * (Math.PI/180);
+  }
+
+  /**
+   * Map symptoms to relevant specialties
+   */
+  static async getSymptomSpecialtyMapping(symptoms: string): Promise<string[]> {
+    const symptomMap: Record<string, string[]> = {
+      // Cardiovascular symptoms
+      'chest pain': ['Tim mạch'],
+      'heart': ['Tim mạch'],
+      'blood pressure': ['Tim mạch'],
+      'hypertension': ['Tim mạch'],
+      
+      // Neurological symptoms
+      'headache': ['Thần kinh'],
+      'migraine': ['Thần kinh'],
+      'seizure': ['Thần kinh'],
+      'stroke': ['Thần kinh'],
+      'memory': ['Thần kinh'],
+      
+      // Orthopedic symptoms
+      'bone': ['Chấn thương chỉnh hình'],
+      'joint': ['Chấn thương chỉnh hình'],
+      'fracture': ['Chấn thương chỉnh hình'],
+      'back pain': ['Chấn thương chỉnh hình'],
+      
+      // Dermatological symptoms
+      'skin': ['Da liễu'],
+      'rash': ['Da liễu'],
+      'acne': ['Da liễu'],
+      'eczema': ['Da liễu'],
+      
+      // Pediatric symptoms
+      'child': ['Nhi khoa'],
+      'baby': ['Nhi khoa'],
+      'infant': ['Nhi khoa'],
+      
+      // General internal medicine
+      'fever': ['Nội tổng hợp'],
+      'fatigue': ['Nội tổng hợp'],
+      'weight loss': ['Nội tổng hợp'],
+    };
+
+    const lowerSymptoms = symptoms.toLowerCase();
+    const matchedSpecialties: string[] = [];
+
+    for (const [symptom, specialties] of Object.entries(symptomMap)) {
+      if (lowerSymptoms.includes(symptom)) {
+        matchedSpecialties.push(...specialties);
+      }
+    }
+
+    // Get specialty IDs
+    if (matchedSpecialties.length > 0) {
+      const specialtyRecords = await prisma.specialty.findMany({
+        where: {
+          name: { in: matchedSpecialties }
+        },
+        select: { id: true }
+      });
+      return specialtyRecords.map(s => s.id);
+    }
+
+    return [];
+  }
+
+  /**
+   * Get applied filters for meta information
+   */
+  static getAppliedFilters(filters: AdvancedDoctorSearchFilters) {
+    const applied: string[] = [];
+    
+    if (filters.q) applied.push('text_search');
+    if (filters.symptoms) applied.push('symptoms');
+    if (filters.specialtyId) applied.push('specialty');
+    if (filters.experienceLevel) applied.push('experience_level');
+    if (filters.minRating || filters.maxRating) applied.push('rating');
+    if (filters.minFee || filters.maxFee || filters.priceRange) applied.push('price');
+    if (filters.city) applied.push('city');
+    if (filters.latitude && filters.longitude) applied.push('location');
+    if (filters.radius) applied.push('radius');
+    if (filters.gender) applied.push('gender');
+    if (filters.available !== undefined) applied.push('availability');
+    
+    return applied;
+  }
+
+  /**
+   * Log search analytics for optimization
+   */
+  static async logSearchAnalytics(analytics: SearchAnalytics) {
+    try {
+      // In a real application, you might want to store this in a separate analytics table
+      // or send to an analytics service like Google Analytics, Mixpanel, etc.
+      console.log('Search Analytics:', {
+        query: analytics.query,
+        resultCount: analytics.resultCount,
+        searchTime: `${analytics.searchTime}ms`,
+        timestamp: analytics.timestamp.toISOString()
+      });
+
+      // For now, we'll just log to console
+      // In production, implement proper analytics storage
+    } catch (error) {
+      console.error('Failed to log search analytics:', error);
+    }
+  }
+
+  /**
+   * Advanced clinic search with enhanced filtering
+   */
+  static async searchClinicsAdvanced(filters: AdvancedClinicSearchFilters) {
+    const startTime = Date.now();
+
+    const {
+      q,
+      services,
+      city,
+      district,
+      latitude,
+      longitude,
+      radius,
+      openNow,
+      operatingDay,
+      operatingTime,
+      hasParking,
+      isAccessible,
+      hasEmergency,
+      page = 1,
+      limit = 10,
+      sortBy = 'relevance',
+      sortOrder = 'desc'
+    } = filters;
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {};
+
+    // Text search
+    if (q) {
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { address: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } }
+      ];
+    }
+
+    // Location filters
+    if (city) {
+      where.address = {
+        ...where.address,
+        contains: city,
+        mode: 'insensitive'
+      };
+    }
+
+    if (district) {
+      where.address = {
+        ...where.address,
+        contains: district,
+        mode: 'insensitive'
+      };
+    }
+
+    // Operating hours filter
+    if (openNow) {
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+      where.AND = [
+        { openTime: { lte: currentTime } },
+        { closeTime: { gte: currentTime } }
+      ];
+    }
+
+    const [clinics, total] = await Promise.all([
+      prisma.clinic.findMany({
+        where,
+        include: {
+          clinicDoctors: {
+            include: {
+              doctor: {
+                include: {
+                  user: {
+                    select: {
+                      firstName: true,
+                      lastName: true
+                    }
+                  },
+                  specialty: {
+                    select: {
+                      name: true,
+                      icon: true
+                    }
+                  }
+                }
+              }
+            },
+            take: 3 // Show first 3 doctors
+          }
+        },
+        orderBy: sortBy === 'name' ? { name: sortOrder } : { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.clinic.count({ where }),
+    ]);
+
+    // Calculate distances if location provided
+    let clinicsWithDistance = clinics;
+    if (latitude && longitude) {
+      clinicsWithDistance = clinics.map(clinic => ({
+        ...clinic,
+        distance: this.calculateDistance(
+          latitude,
+          longitude,
+          clinic.latitude,
+          clinic.longitude
+        )
+      }));
+
+      // Filter by radius if specified
+      if (radius) {
+        clinicsWithDistance = clinicsWithDistance.filter(clinic => clinic.distance <= radius);
+      }
+
+      // Sort by distance if requested
+      if (sortBy === 'distance') {
+        clinicsWithDistance.sort((a, b) => {
+          return sortOrder === 'asc' ? a.distance - b.distance : b.distance - a.distance;
+        });
+      }
+    }
+
+    const searchTime = Date.now() - startTime;
+
+    return {
+      data: clinicsWithDistance,
+      pagination: {
+        page,
+        limit,
+        total: clinicsWithDistance.length,
+        totalPages: Math.ceil(clinicsWithDistance.length / limit),
+      },
+      meta: {
+        searchTime,
+        hasLocationFilter: !!(latitude && longitude),
+        appliedFilters: this.getAppliedClinicFilters(filters)
+      }
+    };
+  }
+
+  /**
+   * Get applied clinic filters for meta information
+   */
+  static getAppliedClinicFilters(filters: AdvancedClinicSearchFilters) {
+    const applied: string[] = [];
+
+    if (filters.q) applied.push('text_search');
+    if (filters.services?.length) applied.push('services');
+    if (filters.city) applied.push('city');
+    if (filters.district) applied.push('district');
+    if (filters.latitude && filters.longitude) applied.push('location');
+    if (filters.radius) applied.push('radius');
+    if (filters.openNow) applied.push('open_now');
+    if (filters.operatingDay && filters.operatingTime) applied.push('operating_hours');
+    if (filters.hasParking) applied.push('parking');
+    if (filters.isAccessible) applied.push('accessibility');
+    if (filters.hasEmergency) applied.push('emergency');
+
+    return applied;
+  }
+
+  /**
+   * Get search suggestions for autocomplete
+   */
+  static async getSearchSuggestions(query: string, type: string, limit: number) {
+    const suggestions: any[] = [];
+
+    switch (type) {
+      case 'doctors':
+        const doctors = await prisma.doctor.findMany({
+          where: {
+            OR: [
+              {
+                user: {
+                  OR: [
+                    { firstName: { contains: query, mode: 'insensitive' } },
+                    { lastName: { contains: query, mode: 'insensitive' } }
+                  ]
+                }
+              },
+              { biography: { contains: query, mode: 'insensitive' } }
+            ]
+          },
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            },
+            specialty: {
+              select: {
+                name: true,
+                icon: true
+              }
+            }
+          },
+          take: limit
+        });
+
+        suggestions.push(...doctors.map(doctor => ({
+          type: 'doctor',
+          id: doctor.id,
+          name: `${doctor.user.firstName} ${doctor.user.lastName}`,
+          specialty: doctor.specialty.name,
+          icon: doctor.specialty.icon
+        })));
+        break;
+
+      case 'clinics':
+        const clinics = await prisma.clinic.findMany({
+          where: {
+            OR: [
+              { name: { contains: query, mode: 'insensitive' } },
+              { address: { contains: query, mode: 'insensitive' } }
+            ]
+          },
+          select: {
+            id: true,
+            name: true,
+            address: true
+          },
+          take: limit
+        });
+
+        suggestions.push(...clinics.map(clinic => ({
+          type: 'clinic',
+          id: clinic.id,
+          name: clinic.name,
+          address: clinic.address
+        })));
+        break;
+
+      case 'specialties':
+        const specialties = await prisma.specialty.findMany({
+          where: {
+            OR: [
+              { name: { contains: query, mode: 'insensitive' } },
+              { description: { contains: query, mode: 'insensitive' } }
+            ]
+          },
+          select: {
+            id: true,
+            name: true,
+            icon: true,
+            _count: {
+              select: { doctors: true }
+            }
+          },
+          take: limit
+        });
+
+        suggestions.push(...specialties.map(specialty => ({
+          type: 'specialty',
+          id: specialty.id,
+          name: specialty.name,
+          icon: specialty.icon,
+          doctorCount: specialty._count.doctors
+        })));
+        break;
+
+      case 'symptoms':
+        // Return predefined symptom suggestions
+        const symptomSuggestions = [
+          'chest pain', 'headache', 'back pain', 'joint pain', 'skin rash',
+          'fever', 'fatigue', 'weight loss', 'memory problems', 'heart palpitations'
+        ].filter(symptom =>
+          symptom.toLowerCase().includes(query.toLowerCase())
+        ).slice(0, limit);
+
+        suggestions.push(...symptomSuggestions.map(symptom => ({
+          type: 'symptom',
+          name: symptom,
+          category: 'symptom'
+        })));
+        break;
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * Get available search filters
+   */
+  static async getSearchFilters(type: string, location?: { latitude: number; longitude: number; radius: number }) {
+    const filters: any = {};
+
+    if (type === 'doctors') {
+      const [specialties, experienceLevels, priceRanges, cities] = await Promise.all([
+        // Specialties with doctor count
+        prisma.specialty.findMany({
+          select: {
+            id: true,
+            name: true,
+            icon: true,
+            _count: {
+              select: { doctors: true }
+            }
+          },
+          orderBy: { name: 'asc' }
+        }),
+
+        // Experience level distribution
+        prisma.$queryRaw`
+          SELECT
+            CASE
+              WHEN experience < 5 THEN 'junior'
+              WHEN experience < 10 THEN 'mid'
+              ELSE 'senior'
+            END as level,
+            COUNT(*)::int as count
+          FROM doctors
+          WHERE "isAvailable" = true
+          GROUP BY level
+          ORDER BY level
+        `,
+
+        // Price range distribution
+        prisma.$queryRaw`
+          SELECT
+            CASE
+              WHEN "consultationFee" <= 300000 THEN 'budget'
+              WHEN "consultationFee" <= 600000 THEN 'mid'
+              ELSE 'premium'
+            END as range,
+            COUNT(*)::int as count,
+            MIN("consultationFee")::int as min_fee,
+            MAX("consultationFee")::int as max_fee
+          FROM doctors
+          WHERE "isAvailable" = true
+          GROUP BY range
+          ORDER BY min_fee
+        `,
+
+        // Cities from clinic addresses
+        prisma.$queryRaw`
+          SELECT DISTINCT
+            TRIM(SPLIT_PART(address, ',', -1)) as city,
+            COUNT(DISTINCT cd."doctorId")::int as doctor_count
+          FROM clinics c
+          INNER JOIN clinic_doctors cd ON c.id = cd."clinicId"
+          INNER JOIN doctors d ON cd."doctorId" = d.id
+          WHERE d."isAvailable" = true
+          GROUP BY city
+          ORDER BY doctor_count DESC, city ASC
+          LIMIT 20
+        `
+      ]);
+
+      filters.specialties = specialties;
+      filters.experienceLevels = experienceLevels;
+      filters.priceRanges = priceRanges;
+      filters.cities = cities;
+      filters.languages = ['Vietnamese', 'English', 'French', 'Japanese']; // Predefined list
+      filters.genders = [
+        { value: 'MALE', label: 'Male', count: await this.getGenderCount('MALE') },
+        { value: 'FEMALE', label: 'Female', count: await this.getGenderCount('FEMALE') }
+      ];
+    }
+
+    if (type === 'clinics') {
+      const [cities, districts, services] = await Promise.all([
+        // Cities from clinic addresses
+        prisma.$queryRaw`
+          SELECT DISTINCT
+            TRIM(SPLIT_PART(address, ',', -1)) as city,
+            COUNT(*)::int as count
+          FROM clinics
+          GROUP BY city
+          ORDER BY count DESC, city ASC
+          LIMIT 20
+        `,
+
+        // Districts from clinic addresses
+        prisma.$queryRaw`
+          SELECT DISTINCT
+            TRIM(SPLIT_PART(address, ',', -2)) as district,
+            COUNT(*)::int as count
+          FROM clinics
+          GROUP BY district
+          ORDER BY count DESC, district ASC
+          LIMIT 30
+        `,
+
+        // Available services (predefined list)
+        Promise.resolve([
+          'Emergency Care', 'Laboratory', 'Radiology', 'Pharmacy',
+          'Surgery', 'Maternity', 'Pediatrics', 'Cardiology',
+          'Neurology', 'Orthopedics', 'Dermatology', 'Ophthalmology'
+        ])
+      ]);
+
+      filters.cities = cities;
+      filters.districts = districts;
+      filters.services = services.map(service => ({ name: service, available: true }));
+      filters.amenities = [
+        { name: 'Parking', key: 'hasParking' },
+        { name: 'Wheelchair Accessible', key: 'isAccessible' },
+        { name: 'Emergency Services', key: 'hasEmergency' }
+      ];
+    }
+
+    return filters;
+  }
+
+  /**
+   * Get gender count for doctors
+   */
+  static async getGenderCount(gender: 'MALE' | 'FEMALE'): Promise<number> {
+    return prisma.doctor.count({
+      where: {
+        isAvailable: true,
+        user: { gender }
+      }
+    });
+  }
+
+  /**
+   * Get popular searches
+   */
+  static async getPopularSearches(type: string, limit: number, timeframe: string) {
+    // In a real application, this would query actual search analytics data
+    // For now, return mock popular searches based on type
+
+    const popularSearches: any = {
+      doctors: [
+        { query: 'tim mạch', count: 150, trend: 'up' },
+        { query: 'thần kinh', count: 120, trend: 'stable' },
+        { query: 'nhi khoa', count: 100, trend: 'up' },
+        { query: 'da liễu', count: 85, trend: 'down' },
+        { query: 'chấn thương chỉnh hình', count: 75, trend: 'up' }
+      ],
+      clinics: [
+        { query: 'hanoi', count: 200, trend: 'up' },
+        { query: 'ho chi minh', count: 180, trend: 'stable' },
+        { query: 'emergency', count: 90, trend: 'up' },
+        { query: 'parking', count: 60, trend: 'stable' },
+        { query: 'accessible', count: 45, trend: 'up' }
+      ],
+      symptoms: [
+        { query: 'chest pain', count: 95, trend: 'up' },
+        { query: 'headache', count: 80, trend: 'stable' },
+        { query: 'back pain', count: 70, trend: 'up' },
+        { query: 'skin rash', count: 55, trend: 'down' },
+        { query: 'fever', count: 50, trend: 'stable' }
+      ]
+    };
+
+    return popularSearches[type]?.slice(0, limit) || [];
+  }
+
+  /**
+   * Get search analytics (admin only)
+   */
+  static async getSearchAnalytics() {
+    // In a real application, this would query actual analytics data
+    // For now, return mock analytics data
+
+    return {
+      totalSearches: 1250,
+      uniqueUsers: 450,
+      averageSearchTime: 285, // milliseconds
+      topQueries: [
+        { query: 'tim mạch', count: 150, avgResultCount: 12 },
+        { query: 'thần kinh', count: 120, avgResultCount: 8 },
+        { query: 'nhi khoa', count: 100, avgResultCount: 15 }
+      ],
+      searchTrends: {
+        daily: [45, 52, 48, 61, 55, 58, 62],
+        weekly: [320, 340, 315, 380, 365, 390, 410],
+        monthly: [1200, 1350, 1250, 1400, 1320, 1450, 1380]
+      },
+      noResultsQueries: [
+        { query: 'plastic surgery', count: 25 },
+        { query: 'veterinary', count: 18 },
+        { query: 'dentist', count: 15 }
+      ],
+      performanceMetrics: {
+        averageResponseTime: 285,
+        slowQueries: [
+          { query: 'complex search with multiple filters', time: 850 },
+          { query: 'location based search', time: 720 }
+        ]
+      }
+    };
+  }
+
+  /**
+   * Get suggestions for "no results" queries
+   */
+  static async getNoResultsSuggestions(query: string) {
+    const suggestions = [];
+
+    // Suggest similar specialties
+    const specialties = await prisma.specialty.findMany({
+      where: {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { description: { contains: query, mode: 'insensitive' } }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        icon: true,
+        _count: {
+          select: { doctors: true }
+        }
+      },
+      take: 3
+    });
+
+    suggestions.push(...specialties.map(specialty => ({
+      type: 'specialty',
+      suggestion: `Try searching for "${specialty.name}"`,
+      data: specialty
+    })));
+
+    // Suggest popular searches
+    const popularSearches = await this.getPopularSearches('doctors', 3, 'week');
+    suggestions.push(...popularSearches.map((search: any) => ({
+      type: 'popular',
+      suggestion: `Popular search: "${search.query}"`,
+      data: search
+    })));
+
+    // Suggest broader search terms
+    const broaderTerms = [
+      'Try searching by specialty instead of specific condition',
+      'Try searching by location (city or district)',
+      'Try using more general terms'
+    ];
+
+    suggestions.push(...broaderTerms.map(term => ({
+      type: 'tip',
+      suggestion: term,
+      data: null
+    })));
+
+    return suggestions.slice(0, 5);
+  }
+
+  /**
+   * Search across all entities
+   */
+  static async searchAll(query: string, limit: number) {
+    const [doctors, clinics, specialties] = await Promise.all([
+      // Search doctors
+      prisma.doctor.findMany({
+        where: {
+          OR: [
+            {
+              user: {
+                OR: [
+                  { firstName: { contains: query, mode: 'insensitive' } },
+                  { lastName: { contains: query, mode: 'insensitive' } }
+                ]
+              }
+            },
+            { biography: { contains: query, mode: 'insensitive' } }
+          ]
+        },
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              avatar: true
+            }
+          },
+          specialty: {
+            select: {
+              name: true,
+              icon: true
+            }
+          }
+        },
+        take: limit
+      }),
+
+      // Search clinics
+      prisma.clinic.findMany({
+        where: {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { address: { contains: query, mode: 'insensitive' } },
+            { description: { contains: query, mode: 'insensitive' } }
+          ]
+        },
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          latitude: true,
+          longitude: true
+        },
+        take: limit
+      }),
+
+      // Search specialties
+      prisma.specialty.findMany({
+        where: {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { description: { contains: query, mode: 'insensitive' } }
+          ]
+        },
+        select: {
+          id: true,
+          name: true,
+          icon: true,
+          description: true,
+          _count: {
+            select: { doctors: true }
+          }
+        },
+        take: limit
+      })
+    ]);
+
+    return {
+      doctors,
+      clinics,
+      specialties
+    };
+  }
+}
