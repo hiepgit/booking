@@ -14,7 +14,10 @@ export interface Review {
   };
   doctor: {
     id: string;
-    userId: string;
+    firstName?: string;
+    lastName?: string;
+    avatar?: string;
+    specialty?: string;
   };
 }
 
@@ -40,6 +43,9 @@ export interface ReviewsError {
 export async function getDoctorReviews(doctorId: string, params?: {
   page?: number;
   limit?: number;
+  rating?: number;
+  sortBy?: 'rating' | 'date';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   success: boolean;
   data?: ReviewsResponse;
@@ -47,13 +53,16 @@ export async function getDoctorReviews(doctorId: string, params?: {
 }> {
   try {
     console.log('⭐ Fetching reviews for doctor:', doctorId);
-    
+
     const queryParams = new URLSearchParams();
-    queryParams.append('doctorId', doctorId);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.rating) queryParams.append('rating', params.rating.toString());
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
-    const response = await api.get(`/reviews?${queryParams.toString()}`);
+    const url = `/doctors/${doctorId}/reviews${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await api.get(url);
     
     if (response.status === 200) {
       console.log('✅ Doctor reviews fetched successfully:', response.data.data.length, 'reviews');
@@ -103,7 +112,7 @@ export async function createReview(doctorId: string, rating: number, comment: st
 }> {
   try {
     console.log('⭐ Creating review for doctor:', doctorId);
-    
+
     const response = await api.post('/reviews', {
       doctorId,
       rating,
@@ -114,7 +123,7 @@ export async function createReview(doctorId: string, rating: number, comment: st
       console.log('✅ Review created successfully');
       return {
         success: true,
-        data: response.data
+        data: response.data.review // Backend returns { message, review }
       };
     } else {
       console.log('❌ Failed to create review - invalid response');
