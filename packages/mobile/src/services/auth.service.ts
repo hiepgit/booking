@@ -19,8 +19,30 @@ export interface AuthResponse {
     role: string;
     isVerified: boolean;
     avatar?: string;
-    patient?: any;
-    doctor?: any;
+    patient?: {
+      id: string;
+      bloodType?: string;
+      allergies?: string;
+      emergencyContact?: string;
+      insuranceNumber?: string;
+    };
+    doctor?: {
+      id: string;
+      licenseNumber: string;
+      specialtyId: string;
+      experience: number;
+      biography?: string;
+      consultationFee: number;
+      averageRating: number;
+      totalReviews: number;
+      isAvailable: boolean;
+      specialty?: {
+        id: string;
+        name: string;
+        description?: string;
+        icon?: string;
+      };
+    };
   };
 }
 
@@ -104,13 +126,13 @@ export async function loginWithEmail(email: string, password: string): Promise<{
  * Đăng ký tài khoản mới
  */
 export async function registerWithEmail(
-  fullName: string, 
-  email: string, 
+  fullName: string,
+  email: string,
   password: string,
   role: 'PATIENT' | 'DOCTOR' = 'PATIENT'
 ): Promise<{
   success: boolean;
-  data?: { message: string; user: any };
+  data?: { message: string; user: AuthResponse['user'] };
   error?: AuthError;
 }> {
   try {
@@ -178,7 +200,7 @@ export async function registerWithEmail(
  */
 export async function verifyOtp(email: string, otp: string): Promise<{
   success: boolean;
-  data?: { message: string; user: any };
+  data?: { message: string; user: AuthResponse['user'] };
   error?: AuthError;
 }> {
   try {
