@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { ReactElement } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { NotificationProvider } from './src/contexts/NotificationContext';
 import LandingScreen from './src/screens/LandingScreen';
 import OnboardingContainer from './src/screens/OnboardingContainer';
 import SignInScreen from './src/screens/SignInScreen';
@@ -17,7 +18,13 @@ import DoctorDetailsScreen from './src/screens/DoctorDetailsScreen';
 import SelectTimeScreen from './src/screens/SelectTimeScreen';
 import ManageAppointmentScreen from './src/screens/ManageAppointmentScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-type Screen = 'landing' | 'onboarding' | 'signin' | 'signup' | 'verify-email' | 'forgot-password' | 'reset-password' | 'verify-reset-email' | 'edit-profile' | 'main-app' | 'location' | 'find-doctors' | 'doctor-details' | 'select-time' | 'manage-appointments' | 'profile';
+import NotificationScreen from './src/screens/NotificationScreen';
+import PaymentScreen from './src/screens/PaymentScreen';
+import PaymentHistoryScreen from './src/screens/PaymentHistoryScreen';
+import ClinicDetailsScreen from './src/screens/ClinicDetailsScreen';
+import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
+import TestScreen from './src/screens/TestScreen';
+type Screen = 'landing' | 'onboarding' | 'signin' | 'signup' | 'verify-email' | 'forgot-password' | 'reset-password' | 'verify-reset-email' | 'edit-profile' | 'main-app' | 'location' | 'find-doctors' | 'doctor-details' | 'select-time' | 'manage-appointments' | 'profile' | 'notifications' | 'payment' | 'payment-history' | 'clinic-details' | 'change-password' | 'test';
 
 type UserData = {
   name: string;
@@ -26,7 +33,7 @@ type UserData = {
 
 // Main App component that uses AuthContext
 function AppContent(): ReactElement {
-  const { isAuthenticated, user, isLoading, login, logout } = useAuth();
+  const { isAuthenticated, isLoading, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
   const [userData, setUserData] = useState<UserData>({ name: '', email: '' });
 
@@ -42,23 +49,23 @@ function AppContent(): ReactElement {
     console.log('✅ Authentication successful, navigating to main app');
   };
 
-  const handleLogout = async (): Promise<void> => {
-    try {
-      await logout();
-      setCurrentScreen('landing');
-      console.log('✅ Logout successful');
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-    }
-  };
+
 
   const navigateToOnboarding = (): void => {
     console.log('Navigating to onboarding screen...');
     setCurrentScreen('onboarding');
   };
 
-  const navigateToLanding = (): void => {
-    setCurrentScreen('landing');
+  const navigateToLanding = async (): Promise<void> => {
+    try {
+      await logout();
+      setCurrentScreen('landing');
+      console.log('✅ Logout successful');
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      // Still navigate to landing even if logout fails
+      setCurrentScreen('landing');
+    }
   };
 
   const navigateToSignIn = (): void => {
@@ -130,6 +137,33 @@ function AppContent(): ReactElement {
   const navigateToProfile = (): void => {
     console.log('Navigating to profile screen...');
     setCurrentScreen('profile');
+  };
+
+  const navigateToNotifications = (): void => {
+    console.log('Navigating to notifications screen...');
+    setCurrentScreen('notifications');
+  };
+
+
+
+  const navigateToPaymentHistory = (): void => {
+    console.log('Navigating to payment history screen...');
+    setCurrentScreen('payment-history');
+  };
+
+  const navigateToClinicDetails = (clinicId: string): void => {
+    console.log('Navigating to clinic details screen for clinic:', clinicId);
+    setCurrentScreen('clinic-details');
+  };
+
+  const navigateToChangePassword = (): void => {
+    console.log('Navigating to change password screen...');
+    setCurrentScreen('change-password');
+  };
+
+  const navigateToTest = (): void => {
+    console.log('Navigating to test screen...');
+    setCurrentScreen('test');
   };
 
   // Show loading screen while checking authentication
@@ -227,32 +261,29 @@ function AppContent(): ReactElement {
       );
     case 'edit-profile':
       return (
-        <EditProfileScreen 
-          onBack={() => navigateToVerifyEmail()}
-          onProfileComplete={() => {
-            console.log('Profile setup complete');
-            setCurrentScreen('main-app');
-          }}
-          initialName={userData.name}
-          initialEmail={userData.email}
+        <EditProfileScreen
+          onNavigateBack={() => navigateToProfile()}
         />
       );
     case 'main-app':
       return (
-        <HomeScreen 
+        <HomeScreen
           onLogout={navigateToLanding}
           onNavigateLocation={navigateToLocation}
           onNavigateFindDoctors={navigateToFindDoctors}
           onNavigateAppointments={navigateToManageAppointments}
           onNavigateProfile={navigateToProfile}
+          onNavigateNotifications={navigateToNotifications}
+          onNavigateTest={navigateToTest}
         />
       );
     case 'location':
       return (
-        <LocationScreen 
+        <LocationScreen
           onNavigateHome={navigateToMainApp}
           onNavigateAppointment={navigateToManageAppointments}
           onNavigateProfile={navigateToProfile}
+          onNavigateClinicDetails={navigateToClinicDetails}
         />
       );
     case 'find-doctors':
@@ -290,17 +321,68 @@ function AppContent(): ReactElement {
       );
     case 'profile':
       return (
-        <ProfileScreen 
+        <ProfileScreen
           onNavigateHome={navigateToMainApp}
           onNavigateLocation={navigateToLocation}
           onNavigateAppointments={navigateToManageAppointments}
           onNavigateEditProfile={() => console.log('Navigate to edit profile')}
           onNavigateFavorites={() => console.log('Navigate to favorites')}
-          onNavigateNotifications={() => console.log('Navigate to notifications')}
+          onNavigateNotifications={navigateToNotifications}
           onNavigateSettings={() => console.log('Navigate to settings')}
           onNavigateHelp={() => console.log('Navigate to help')}
           onNavigateTerms={() => console.log('Navigate to terms')}
+          onNavigateChangePassword={navigateToChangePassword}
+          onNavigatePaymentHistory={navigateToPaymentHistory}
           onLogout={navigateToLanding}
+        />
+      );
+    case 'notifications':
+      return (
+        <NotificationScreen
+          onNavigateBack={navigateToMainApp}
+        />
+      );
+    case 'payment':
+      return (
+        <PaymentScreen
+          appointmentId="current-appointment-id" // This should come from navigation params
+          onNavigateBack={navigateToMainApp}
+          onPaymentSuccess={(paymentId) => {
+            console.log('Payment successful:', paymentId);
+            navigateToMainApp();
+          }}
+          onPaymentFailed={(error) => {
+            console.log('Payment failed:', error);
+          }}
+        />
+      );
+    case 'payment-history':
+      return (
+        <PaymentHistoryScreen
+          onNavigateBack={navigateToMainApp}
+        />
+      );
+    case 'clinic-details':
+      return (
+        <ClinicDetailsScreen
+          clinicId="current-clinic-id" // This should come from navigation params
+          onNavigateBack={navigateToLocation}
+          onNavigateBookAppointment={(doctorId: string, clinicId: string) => {
+            console.log('Book appointment with doctor:', doctorId, 'at clinic:', clinicId);
+            navigateToSelectTime();
+          }}
+        />
+      );
+    case 'change-password':
+      return (
+        <ChangePasswordScreen
+          onNavigateBack={navigateToProfile}
+        />
+      );
+    case 'test':
+      return (
+        <TestScreen
+          onNavigateBack={navigateToMainApp}
         />
       );
     case 'landing':
@@ -327,7 +409,9 @@ const loadingStyles = StyleSheet.create({
 export default function App(): ReactElement {
   return (
     <AuthProvider>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </AuthProvider>
   );
 }
